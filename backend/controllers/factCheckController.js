@@ -1,10 +1,44 @@
 import { getEmbedding } from '../services/embeddingService.js';
 import { fetchLiveNews } from '../services/newsService.js';
 import { searchSimilarClaims } from '../models/qdrantModel.js';
-import { evaluateClaim, checkAiReadiness } from '../models/aiModel.js';
+import { evaluateClaim, checkAiReadiness, analyzeAudio } from '../models/aiModel.js';
 
 import { fetchImageContext } from '../services/imageService.js';
 import { extractLinkContext } from '../services/linkService.js';
+
+export const processAudioFactCheck = async (req, res, next) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Audio file is required' });
+        }
+        console.log(`\n[POST /api/fact-check/audio] Received Audio Upload: ${req.file.mimetype}, size: ${req.file.size}`);
+        
+        const audioBuffer = req.file.buffer;
+        const mimeType = req.file.mimetype;
+        const base64Audio = audioBuffer.toString('base64');
+        
+        const audioAnalysis = await analyzeAudio(base64Audio, mimeType);
+        const transcription = audioAnalysis.transcription;
+        
+        console.log(`[POST /api/fact-check/audio] Transcription: "${transcription}"`);
+        console.log(`[POST /api/fact-check/audio] Authentic: ${audioAnalysis.is_authentic} | Reason: ${audioAnalysis.authenticity_reasoning}`);
+        
+        if (!transcription || transcription.trim().length === 0) {
+            return res.status(400).json({ error: 'Could not transcribe any speech from the audio.' });
+        }
+        
+        let claimWithContext = transcription;
+        if (audioAnalysis.is_authentic === false) {
+            claimWithContext += `\n\n[SYSTEM ALERT: This audio was detected as POTENTIALLY AI-GENERATED or DEEPFAKE. Reason: ${audioAnalysis.authenticity_reasoning}]`;
+        }
+
+        // Pass the transcription (with authenticity alert if needed) as the claim to the next middleware
+        req.body.claim = claimWithContext;
+        next();
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+};
 
 export const processFactCheck = async (req, res) => {
     try {

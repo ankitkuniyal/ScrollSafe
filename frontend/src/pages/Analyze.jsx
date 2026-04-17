@@ -12,43 +12,59 @@ import {
   Type as TypeIcon,
   Upload,
   Link as LinkIcon,
-  FileImage
+  FileImage,
+  Mic,
+  Square,
+  FileAudio
 } from 'lucide-react';
 
 export default function Analyze({ isDark }) {
-  const [mode, setMode] = useState('text'); // 'text', 'image'
+  const [mode, setMode] = useState('text'); // 'text', 'image', 'audio'
   const [imageSubMode, setImageSubMode] = useState('url'); // 'url', 'upload'
+  const [audioSubMode, setAudioSubMode] = useState('record'); // 'record', 'upload'
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const audioInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!content.trim() && !preview) return;
+    if (mode === 'text' && !content.trim()) return;
+    if (mode === 'image' && imageSubMode === 'url' && !content.trim()) return;
+    if (mode === 'image' && imageSubMode === 'upload' && !preview) return;
+    if (mode === 'audio' && !audioBlob) return;
 
     setLoading(true);
     setResult(null);
     setError(null);
 
-    const payload = {};
-    if (mode === 'text') payload.claim = content.trim();
-    if (mode === 'image') {
-      // In a real app we would upload the file here. 
-      // For this demo, we use the URL provided or the file name as a placeholder claim.
-      payload.imageUrl = content.trim();
+    let url = 'http://localhost:3000/api/fact-check';
+    let options = { method: 'POST' };
+
+    if (mode === 'audio') {
+      url = 'http://localhost:3000/api/fact-check/audio';
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      options.body = formData;
+    } else {
+      const payload = {};
+      if (mode === 'text') payload.claim = content.trim();
+      if (mode === 'image') {
+        payload.imageUrl = content.trim();
+      }
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify(payload);
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/fact-check', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await fetch(url, options);
 
       if (!response.ok) {
         const errData = await response.json();
@@ -77,6 +93,52 @@ export default function Analyze({ isDark }) {
     }
   };
 
+  const handleAudioFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAudioBlob(file);
+      setPreview(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        setPreview(URL.createObjectURL(audioBlob));
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setError(null);
+      setAudioBlob(null);
+      setPreview(null);
+    } catch (err) {
+      setError('Failed to access microphone. Please ensure permissions are granted.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const getVerdictColor = (verdict) => {
     switch (verdict?.toLowerCase()) {
       case 'true': return 'text-green-500 bg-green-500/10 border-green-500/20';
@@ -99,7 +161,8 @@ export default function Analyze({ isDark }) {
 
   const modes = [
     { id: 'text', label: 'Analyze Text', icon: <TypeIcon size={18} /> },
-    { id: 'image', label: 'Verify Image', icon: <ImageIcon size={18} /> }
+    { id: 'image', label: 'Verify Image', icon: <ImageIcon size={18} /> },
+    { id: 'audio', label: 'Verify Audio', icon: <Mic size={18} /> }
   ];
 
   return (
@@ -122,8 +185,9 @@ export default function Analyze({ isDark }) {
         {modes.map((m) => (
           <button
             key={m.id}
-            onClick={() => { setMode(m.id); setContent(''); setResult(null); setError(null); setPreview(null); }}
-            className={`flex items-center gap-2 px-10 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            type="button"
+            onClick={() => { setMode(m.id); setContent(''); setResult(null); setError(null); setPreview(null); setAudioBlob(null); }}
+            className={`flex items-center gap-2 px-6 md:px-10 py-2.5 rounded-xl text-sm font-bold transition-all ${
               mode === m.id 
                 ? 'bg-primary text-background shadow-lg text-lg' 
                 : 'text-muted hover:bg-primary/10'
@@ -150,7 +214,7 @@ export default function Analyze({ isDark }) {
               className={`w-full h-48 md:h-56 p-6 rounded-xl bg-background border ${isDark ? 'border-white/10' : 'border-black/10'} focus:border-accent outline-none resize-none text-lg text-primary placeholder-muted/60 transition-colors shadow-inner`}
               required
             />
-          ) : (
+          ) : mode === 'image' ? (
             <div className="flex flex-col gap-6">
               {/* Image Sub-Mode Toggle */}
               <div className="flex gap-4 justify-center">
@@ -205,12 +269,84 @@ export default function Analyze({ isDark }) {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {/* Audio Sub-Mode Toggle */}
+              <div className="flex gap-4 justify-center">
+                <button
+                  type="button"
+                  onClick={() => { setAudioSubMode('record'); setError(null); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${audioSubMode === 'record' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-white/5'}`}
+                >
+                  <Mic size={14} /> Record Audio
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAudioSubMode('upload'); setError(null); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${audioSubMode === 'upload' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-white/5'}`}
+                >
+                  <Upload size={14} /> Upload Audio
+                </button>
+              </div>
+
+              {audioSubMode === 'record' ? (
+                <div className="w-full h-48 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center transition-all bg-background">
+                  {isRecording ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
+                        <Mic size={32} className="text-red-500" />
+                      </div>
+                      <span className="text-lg font-bold text-red-500">Recording...</span>
+                      <button type="button" onClick={stopRecording} className="px-6 py-2 bg-red-500 text-white rounded-full font-bold flex items-center gap-2 hover:bg-red-600 transition-colors">
+                        <Square size={16} fill="currentColor" /> Stop
+                      </button>
+                    </div>
+                  ) : preview && audioBlob ? (
+                    <div className="flex flex-col items-center gap-4 w-full px-8">
+                      <audio src={preview} controls className="w-full max-w-md" />
+                      <button type="button" onClick={startRecording} className="px-6 py-2 bg-primary/20 text-primary border border-primary/30 rounded-full font-bold flex items-center gap-2 hover:bg-primary/30 transition-colors">
+                        <Mic size={16} /> Record Again
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      <button type="button" onClick={startRecording} className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-background">
+                        <Mic size={32} />
+                      </button>
+                      <div className="flex flex-col items-center">
+                        <span className="text-lg font-bold text-primary">Tap to Record</span>
+                        <span className="text-sm text-muted">Speak the claim you want to fact-check</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div 
+                  onClick={() => audioInputRef.current.click()}
+                  className={`w-full h-48 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all ${preview ? 'border-accent bg-accent/5' : 'border-white/10 hover:border-accent/50 hover:bg-white/5'}`}
+                >
+                  <input type="file" ref={audioInputRef} hidden accept="audio/*" onChange={handleAudioFileChange} />
+                  {preview && audioBlob ? (
+                    <div className="flex flex-col items-center gap-3 w-full px-8">
+                       <audio src={preview} controls className="w-full max-w-md" onClick={(e) => e.stopPropagation()} />
+                       <span className="text-sm font-bold text-accent">Audio Selected. Click container to change.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <FileAudio size={40} className="text-muted mb-4" />
+                      <span className="text-lg font-bold text-primary">Upload Audio File</span>
+                      <span className="text-sm text-muted">Click to browse or drag and drop</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           <div className="flex justify-end">
             <button 
               type="submit" 
-              disabled={loading || (mode === 'text' && !content.trim()) || (mode === 'image' && imageSubMode === 'url' && !content.trim()) || (mode === 'image' && imageSubMode === 'upload' && !preview)}
+              disabled={loading || isRecording || (mode === 'text' && !content.trim()) || (mode === 'image' && imageSubMode === 'url' && !content.trim()) || (mode === 'image' && imageSubMode === 'upload' && !preview) || (mode === 'audio' && !audioBlob)}
               className="px-8 py-3.5 rounded-full bg-primary text-background font-bold text-base transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg flex items-center justify-center gap-2 min-w-[200px]"
             >
               {loading ? (
@@ -221,7 +357,7 @@ export default function Analyze({ isDark }) {
               ) : (
                 <>
                   <Search size={20} className="text-background" />
-                  Verify {mode === 'text' ? 'Truth' : 'Image Context'}
+                  Verify {mode === 'text' ? 'Truth' : mode === 'audio' ? 'Audio Context' : 'Image Context'}
                 </>
               )}
             </button>

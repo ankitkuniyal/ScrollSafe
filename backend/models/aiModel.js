@@ -59,3 +59,57 @@ export const evaluateClaim = async (prompt) => {
         throw new Error("AI analysis failed with the new GenAI SDK.");
     }
 };
+
+export const analyzeAudio = async (base64Audio, mimeType) => {
+    checkAiReadiness();
+    
+    // Normalize mimeType for common misidentifications
+    let normalizedMimeType = mimeType;
+    if (mimeType === 'video/mpeg' || mimeType === 'audio/mpeg' || mimeType === 'video/mp4') {
+        normalizedMimeType = 'audio/mp3'; // Gemini treats these mpeg streams well as mp3
+    }
+    
+    try {
+        const prompt = `
+            Process the audio file and provide a detailed transcription and authenticity analysis.
+            Requirements:
+            1. Provide a highly accurate transcription of the speech.
+            2. Evaluate if the audio appears authentic (human-recorded) or if there are signs of it being AI-generated, synthesized, or digitally altered (deepfake).
+            3. Provide reasoning for your authenticity assessment based on acoustic anomalies, breathing patterns, or typical deepfake artifacts.
+        `;
+
+        const contents = [
+            { text: prompt },
+            {
+                inlineData: {
+                    mimeType: normalizedMimeType,
+                    data: base64Audio,
+                },
+            },
+        ];
+
+        const response = await client.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: contents,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        transcription: { type: "STRING", description: "The transcribed text of the audio" },
+                        is_authentic: { type: "BOOLEAN", description: "True if the audio appears naturally human-recorded, False if it shows signs of AI generation or tampering" },
+                        authenticity_reasoning: { type: "STRING", description: "Brief reasoning for why it was deemed authentic or synthetic" }
+                    },
+                    required: ["transcription", "is_authentic", "authenticity_reasoning"]
+                }
+            }
+        });
+
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Gemini 3 Audio Error:", error);
+        // Log more details if available in the error object
+        if (error.details) console.error("Error Details:", JSON.stringify(error.details, null, 2));
+        throw new Error(`Failed to analyze audio authenticity: ${error.message || 'Unknown AI error'}`);
+    }
+};
