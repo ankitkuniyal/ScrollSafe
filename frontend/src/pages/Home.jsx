@@ -61,9 +61,9 @@ export default function Home({ isDark }) {
           transition={{ duration: 0.7, ease: "easeOut", delay: 0.1 }}
           className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-8 max-w-4xl leading-[1.15] text-primary"
         >
-          Fact check the internet <br className="hidden md:block" />
+          Cut Through the Noise. <br className="hidden md:block" />
           <span className="text-gradient">
-            in real-time.
+            Find the Truth.
           </span>
         </motion.h1>
 
@@ -97,10 +97,11 @@ export default function Home({ isDark }) {
 
         {/* Interactive Browser Demo */}
         <motion.div 
+          id="demo"
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
-          className="mt-24 w-full max-w-5xl border border-surfaceBorder rounded-3xl bg-surface backdrop-blur-2xl shadow-2xl overflow-hidden ring-1 ring-surfaceBorder"
+          className="mt-24 w-full max-w-5xl border border-surfaceBorder rounded-3xl bg-surface backdrop-blur-2xl shadow-2xl overflow-hidden ring-1 ring-surfaceBorder scroll-mt-32"
         >
           <div className="flex items-center px-6 py-4 border-b border-surfaceBorder bg-surface">
             <div className="flex gap-2.5">

@@ -233,13 +233,12 @@ function addYTActionBarBtn(container, getUrlFunc) {
     btnViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer scrollsafe-yt-action-item';
     
     btnViewModel.innerHTML = `
-        <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-leading" aria-label="Analyze">
+        <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-only" aria-label="Analyze">
             <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 20px; height: 20px;">
+                <svg id="scrollsafe-shorts-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 20px; height: 20px;">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
             </div>
-            <div class="yt-spec-button-shape-next__button-text-content">Analyze</div>
             <yt-touch-feedback-shape aria-hidden="true" class="ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse">
                 <div class="ytSpecTouchFeedbackShapeStroke"></div>
                 <div class="ytSpecTouchFeedbackShapeFill"></div>
@@ -255,19 +254,31 @@ function addYTActionBarBtn(container, getUrlFunc) {
         isAnalyzingVideo = true;
         
         const videoUrl = getUrlFunc();
-        // Silent analysis - result handled in background/frontend
+        const top = window.scrollY + 100;
+        const left = window.scrollX + (window.innerWidth / 2) - 190;
+        
+        removeUI();
+        
         chrome.runtime.sendMessage({
             action: 'checkVideoFact',
             videoUrl: videoUrl
         }).then(response => {
             isAnalyzingVideo = false;
+            if (response.error) {
+                showErrorCard(response.error, top, left);
+            } else {
+                showResultCard(response.data, top, left);
+            }
         }).catch(err => {
             isAnalyzingVideo = false;
+            showErrorCard('Extension error: Analysis failed.', top, left);
         });
     });
 
     container.appendChild(btnViewModel);
 }
+
+let isAnalyzingVideo = false;
 
 function addShortsTrayBtn(tray, getUrlFunc) {
     const label = document.createElement('label');
@@ -280,9 +291,6 @@ function addShortsTrayBtn(tray, getUrlFunc) {
                 </svg>
             </div>
         </button>
-        <div class="ytSpecButtonShapeWithLabelLabel" style="font-size: 10px; margin-top: 2px;">
-            <span class="ytAttributedStringHost">Analyze</span>
-        </div>
     `;
 
     label.addEventListener('click', (e) => {
@@ -293,13 +301,24 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         isAnalyzingVideo = true;
         
         const videoUrl = getUrlFunc();
+        const top = window.scrollY + 100;
+        const left = window.scrollX + (window.innerWidth / 2) - 190;
+        
+        removeUI();
+        
         chrome.runtime.sendMessage({
             action: 'checkVideoFact',
             videoUrl: videoUrl
         }).then(response => {
             isAnalyzingVideo = false;
+            if (response.error) {
+                showErrorCard(response.error, top, left);
+            } else {
+                showResultCard(response.data, top, left);
+            }
         }).catch(err => {
             isAnalyzingVideo = false;
+            showErrorCard('Extension error: Analysis failed.', top, left);
         });
     });
 
@@ -377,4 +396,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
     }
 });
+
 
