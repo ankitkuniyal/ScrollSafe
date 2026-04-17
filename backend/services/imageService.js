@@ -17,13 +17,15 @@ export const fetchImageContext = async (imageUrl) => {
         const data = await res.json();
         let context = "";
         
-        // Try to extract highly relevant visual matches
+        // Try to extract highly relevant visual matches with rich metadata
         if (data.visual_matches && data.visual_matches.length > 0) {
-            // Aggregate the top 4 visual match titles to form a comprehensive contextual string
-            context = data.visual_matches.slice(0, 4).map(v => v.title).join(". ");
+            // Aggregate the top 5 visual matches with complete attribution metadata
+            context = data.visual_matches.slice(0, 5).map((v, i) => 
+                `Match ${i+1}: "${v.title}" (Source: ${v.source || 'Unknown Source'}, Link: ${v.link})`
+            ).join("\n");
         } 
         else if (data.knowledge_graph && data.knowledge_graph.length > 0) {
-            context = data.knowledge_graph.map(k => k.title).join(". ");
+            context = data.knowledge_graph.map(k => `${k.title}: ${k.description || ''}`).join(". ");
         }
 
         if (!context || context.trim().length === 0) {
@@ -31,7 +33,21 @@ export const fetchImageContext = async (imageUrl) => {
         }
 
         console.log(`✅ Extracted core context from image: "${context.substring(0, 60)}..."`);
-        return `Image Analysis Extracted Context: ${context}`;
+        
+        // Pick a smart query for news search (Skip stock photos, pick headlines)
+        const junkKeywords = ["stock", "photo", "istock", "shutterstock", "alamy", "getty", "290+", "buy", "price", "premium"];
+        const matches = data.visual_matches || [];
+        const bestMatch = matches.slice(0, 5).find(m => {
+            const title = m.title.toLowerCase();
+            return !junkKeywords.some(key => title.includes(key));
+        });
+        const smartQuery = (bestMatch ? bestMatch.title : (matches[0]?.title || context)).split('...')[0].trim();
+
+        return {
+            context: `Image Analysis Extracted Context: ${context}`,
+            primaryQuery: smartQuery,
+            visualMatches: matches.slice(0, 8) // Return top 8 matches for the gallery
+        };
         
     } catch (error) {
         console.error("Image Service Failed:", error);

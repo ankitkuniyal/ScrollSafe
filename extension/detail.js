@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderDashboard(data) {
     const main = document.getElementById('report-content');
     const sources = data.sources || { qdrant: [], news: [] };
+    const isImage = !!(data.visualMatches && data.visualMatches.length > 0);
     
     // Evaluate Data Availability
     const strongQdrantMatches = (sources.qdrant || []).filter(item => item.score > 0.85);
@@ -77,25 +78,57 @@ function renderDashboard(data) {
         } else {
             newsHTML = `<div class="source-item" style="text-align: center; padding: 40px 20px;">
                 <p class="source-title">Zero Coverage</p>
-                <p class="source-desc">No breaking news found corroborating or contradicting this.</p>
+                <p class="source-desc">${isImage ? 'No direct breaking news found, but visual evidence and historical records were discovered below.' : 'No breaking news found corroborating or contradicting this.'}</p>
             </div>`;
         }
+    }
+
+    // Build Bento Gallery if image
+    let galleryHTML = '';
+    if (isImage) {
+        galleryHTML = `
+            <div class="card" style="background: transparent; border: none; padding: 0; box-shadow: none;">
+                <div class="section-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Visual Evidence Gallery
+                </div>
+                <div class="image-gallery bento-grid">
+                    ${data.visualMatches.slice(0, 7).map((v, i) => {
+                        let bentoClass = 'bento-standard';
+                        if (i === 0) bentoClass = 'bento-large';
+                        else if (i === 1) bentoClass = 'bento-tall';
+                        else if (i === 2) bentoClass = 'bento-wide';
+                        
+                        return `
+                            <a href="${v.link}" target="_blank" class="thumbnail-item ${bentoClass}">
+                                <div class="image-container">
+                                    <img src="${v.thumbnail}" alt="${v.title}">
+                                </div>
+                                <div class="thumbnail-caption">
+                                    <span class="caption-source">${v.source || 'Direct Source'}</span>
+                                    <p class="caption-title">${v.title.split('...')[0].substring(0, 45)}${v.title.length > 45 ? '...' : ''}</p>
+                                </div>
+                            </a>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }
 
     let parsedConf = parseInt(data.confidence);
     const confVal = !isNaN(parsedConf) ? parsedConf : 50;
     const radius = 70;
     const circumference = 2 * Math.PI * radius;
-    // Calculate SVG offset to simulate bar filling up
     const offset = circumference - (confVal / 100) * circumference;
 
     main.innerHTML = `
         <div class="card hero-layout">
             <div class="hero-content">
                 <div class="verdict-badge verdict-${data.verdict}">${data.verdict}</div>
-                <div class="claim-text">"${data.claim}"</div>
+                ${!isImage ? `<div class="claim-text">"${data.claim}"</div>` : ''}
                 <div class="explanation">
-                    <span class="analysis-label">Analysis</span>${data.explanation}
+                    <span class="analysis-label">ScrollSafe Analysis</span>${data.explanation}
                 </div>
             </div>
             
@@ -112,12 +145,14 @@ function renderDashboard(data) {
             </div>
         </div>
 
+        ${galleryHTML}
+
         <div class="grid-container ${hasQdrant ? 'grid-2' : 'grid-1'}">
             ${hasQdrant ? `
                 <div class="card" style="margin-bottom: 0;">
                     <div class="section-title">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        Historical Database
+                        Historical Database Matches
                     </div>
                     ${qdrantHTML}
                 </div>

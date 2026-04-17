@@ -10,10 +10,16 @@ export const processFactCheck = async (req, res) => {
     try {
         let { claim, imageUrl, linkUrl } = req.body;
         
+        let visualMatches = [];
+        let newsQuery = claim; 
+
         if (imageUrl) {
             console.log(`\n[POST /api/fact-check] Received Image URL: ${imageUrl}`);
             try {
-                claim = await fetchImageContext(imageUrl);
+                const imgResult = await fetchImageContext(imageUrl);
+                claim = imgResult.context;
+                newsQuery = imgResult.primaryQuery;
+                visualMatches = imgResult.visualMatches;
             } catch (e) {
                 return res.status(400).json({ error: e.message });
             }
@@ -73,7 +79,7 @@ export const processFactCheck = async (req, res) => {
         let sourceNews = []; 
         
         if (topScore < 0.85) {
-             const articles = await fetchLiveNews(claim);
+             const articles = await fetchLiveNews(newsQuery || claim);
              if (articles && articles.length > 0) {
                  let flatNews = [];
                  articles.forEach(a => {
@@ -113,6 +119,7 @@ Rule 2: Cross-check against the breaking news! Does the Live News contradict the
 Rule 3: NEVER mention internal tools or systems by name in your explanation. Do NOT mention "Qdrant", "database matches", "similarity scores", "Google News", or "SerpApi". Speak directly to the user as ScrollSafe.
 Rule 4: Keep the explanation concise, empathetic, and direct. Explain *why* it is true or false using the real-world facts provided, not the mechanisms used to find them.
 Rule 5: Output seamlessly resolving the JSON schema constraint.
+Rule 6: MEDIA SOURCE IDENTIFICATION: If the provided Context (especially "Image Analysis Extracted Context") includes specific match articles with source names (e.g., "The Indian Express"), your explanation MUST start by identifying where this media originated from (e.g., "This image belongs to a report from The Indian Express regarding..."). Then proceed with the fact-check.
 
 USER CLAIM TO EVALUATE:
 "${claim}"
@@ -122,8 +129,8 @@ ${liveNewsBlock}
 `;
 
         // STEP 4: Execution
-        console.log("-> Pitching to Gemini for Final Decision...");
-        const finalDecisionJson = await evaluateClaim(prompt);
+        console.log("-> Pitching to Gemini for Final Decision (Vision + Context)...");
+        const finalDecisionJson = await evaluateClaim(prompt, imageUrl);
         console.log("<- Verdict Result:", finalDecisionJson.verdict);
 
         // STEP 5: Response Emittance
@@ -136,7 +143,9 @@ ${liveNewsBlock}
             sources: {
                 qdrant: sourceQdrant,
                 news: sourceNews
-            }
+            },
+            visualMatches: visualMatches,
+            googleContext: imageUrl ? claim.replace("Image Analysis Extracted Context: ", "") : null 
         });
 
     } catch (error) {
