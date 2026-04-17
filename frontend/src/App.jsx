@@ -78,7 +78,7 @@ function App() {
               </>
             )}
             <Link to="/analyze" className={`text-sm font-medium transition-all hover:-translate-y-0.5 ${location.pathname === '/analyze' ? 'text-primary' : 'text-muted hover:text-primary'}`}>
-              Text Analyzer
+              Analyzer
             </Link>
             <a href="#pricing" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Pricing</a>
           </div>

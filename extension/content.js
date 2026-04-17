@@ -20,8 +20,11 @@ function preprocessText(text) {
 }
 
 document.addEventListener('mouseup', (e) => {
+    // Check if the extension context is still valid
+    if (!chrome.runtime?.id) return;
+
     chrome.storage.local.get(['isEnabled'], (result) => {
-        if (result.isEnabled === false) return; // Extension is disabled
+        if (chrome.runtime.lastError || result.isEnabled === false) return;
 
         setTimeout(() => {
             const selection = window.getSelection();
@@ -176,3 +179,26 @@ function showErrorCard(errorMsg, top, left) {
     document.body.appendChild(card);
     currentCard = card;
 }
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'triggerImageCheck') {
+        const top = window.scrollY + Math.max(100, window.innerHeight / 2 - 100);
+        const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
+        
+        removeUI();
+        showLoadingCard(top, left);
+
+        chrome.runtime.sendMessage({
+            action: 'checkFact',
+            imageUrl: message.imageUrl
+        }).then(response => {
+            if (response.error) {
+                showErrorCard(response.error, top, left);
+            } else {
+                showResultCard(response.data, top, left);
+            }
+        }).catch(err => {
+            showErrorCard('Extension error: Could not contact background script.', top, left);
+        });
+    }
+});

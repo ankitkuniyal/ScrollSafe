@@ -3,12 +3,29 @@ import { fetchLiveNews } from '../services/newsService.js';
 import { searchSimilarClaims } from '../models/qdrantModel.js';
 import { evaluateClaim, checkAiReadiness } from '../models/aiModel.js';
 
+import { fetchImageContext } from '../services/imageService.js';
+import { extractLinkContext } from '../services/linkService.js';
+
 export const processFactCheck = async (req, res) => {
     try {
-        const { claim } = req.body;
+        let { claim, imageUrl, linkUrl } = req.body;
         
-        if (!claim || claim.trim().length === 0) {
-            return res.status(400).json({ error: 'Claim text is required' });
+        if (imageUrl) {
+            console.log(`\n[POST /api/fact-check] Received Image URL: ${imageUrl}`);
+            try {
+                claim = await fetchImageContext(imageUrl);
+            } catch (e) {
+                return res.status(400).json({ error: e.message });
+            }
+        } else if (linkUrl) {
+            console.log(`\n[POST /api/fact-check] Received Link URL: ${linkUrl}`);
+            try {
+                claim = await extractLinkContext(linkUrl);
+            } catch (e) {
+                return res.status(400).json({ error: e.message });
+            }
+        } else if (!claim || claim.trim().length === 0) {
+            return res.status(400).json({ error: 'Claim text, imageUrl, or linkUrl is required' });
         }
 
         try { checkAiReadiness(); } 

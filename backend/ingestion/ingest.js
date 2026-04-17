@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const COLLECTION_NAME = 'scrollsafe_claims';
-const CSV_PATH = join(__dirname, 'cleaned_data (final).csv');
+const CSV_PATH = join(__dirname, 'gossip_fake.csv');
 
 async function setupCollection() {
     try {

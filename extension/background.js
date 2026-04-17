@@ -5,7 +5,9 @@ let lastRequestTime = 0;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'checkFact') {
-        handleCheckFact(request.claim).then(sendResponse);
+        handleCheckFact(request.claim, request.imageUrl)
+            .then(sendResponse)
+            .catch(err => sendResponse({ error: err.message }));
         return true; 
     }
     if (request.action === 'openDetailReport') {
@@ -16,10 +18,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 });
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "checkImage",
+        title: "Verify Image with ScrollSafe",
+        contexts: ["image"]
+    });
+});
 
-async function handleCheckFact(claim, retries = 2) {
-    if (cache.has(claim)) {
-        return { data: cache.get(claim) };
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "checkImage" && info.srcUrl) {
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'triggerImageCheck',
+            imageUrl: info.srcUrl
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn("Could not send checkImage message (Receiving end does not exist). The user likely needs to refresh the page.");
+            }
+        });
+    }
+});
+
+async function handleCheckFact(claim, imageUrl, retries = 2) {
+    const cacheKey = imageUrl || claim;
+    if (cache.has(cacheKey)) {
+        return { data: cache.get(cacheKey) };
     }
 
     const now = Date.now();
@@ -29,12 +52,13 @@ async function handleCheckFact(claim, retries = 2) {
     lastRequestTime = now;
 
     try {
+        const payload = imageUrl ? { imageUrl } : { claim };
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ claim })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -44,14 +68,13 @@ async function handleCheckFact(claim, retries = 2) {
 
         const data = await response.json();
         
-        // Caching successful result
-        cache.set(claim, data);
+        cache.set(cacheKey, data);
         return { data };
 
     } catch (error) {
         if (retries > 0) {
             await new Promise(r => setTimeout(r, 1000));
-            return handleCheckFact(claim, retries - 1);
+            return handleCheckFact(claim, imageUrl, retries - 1);
         }
         return { error: error.message || 'Failed to connect to fact-checking API.' };
     }

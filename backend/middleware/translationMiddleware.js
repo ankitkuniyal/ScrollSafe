@@ -1,7 +1,12 @@
 export const translateClaimMiddleware = async (req, res, next) => {
     try {
-        const { claim } = req.body;
+        const { claim, imageUrl } = req.body;
         
+        if (imageUrl) {
+            console.log(`[Translation] Skipping translation for image payload.`);
+            return next();
+        }
+
         if (!claim || claim.trim().length === 0) {
             return next();
         }
