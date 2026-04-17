@@ -7,6 +7,9 @@ const client = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY || ''
 });
 
+// Current model configuration
+const MODEL_NAME = "gemini-2.5-flash-lite";
+
 // JSON Schema for structured fact-checking output
 const responseSchema = {
     type: "OBJECT",
@@ -74,18 +77,23 @@ export const evaluateClaim = async (prompt, imageUrl = null) => {
         if (imageUrl) console.log(`[Vision Enabled with Image: ${imageUrl.substring(0, 50)}...]`);
         console.log("-----------------------------------------------");
 
-        // Use gemini-3-flash-preview as per the new documentation
+        // Build config conditionally
+        const config = {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema,
+        };
+
+        // Enable Thinking Mode only for gemini-3-flash-preview
+        if (MODEL_NAME === "gemini-3-flash-preview") {
+            config.thinkingConfig = {
+                thinkingLevel: ThinkingLevel.LOW,
+            };
+        }
+
         const response = await client.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: contents, // Passing the multimodal array
-            config: {
-                // Enable Thinking Mode (Low Budget) for better reasoning
-                thinkingConfig: {
-                    thinkingLevel: ThinkingLevel.LOW,
-                },
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
-            }
+            model: MODEL_NAME,
+            contents: contents,
+            config: config
         });
 
         console.log("---------------- GEMINI OUTPUT ----------------");
@@ -117,6 +125,7 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
             1. Provide a highly accurate transcription of the speech.
             2. Evaluate if the audio appears authentic (human-recorded) or if there are signs of it being AI-generated, synthesized, or digitally altered (deepfake).
             3. Provide reasoning for your authenticity assessment based on acoustic anomalies, breathing patterns, or typical deepfake artifacts.
+            4. Generate a concise "primary_query" (5-8 words) that captures the core factual claim for search engine verification.
         `;
 
         const contents = [
@@ -130,7 +139,7 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
         ];
 
         const response = await client.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: MODEL_NAME,
             contents: contents,
             config: {
                 responseMimeType: "application/json",
@@ -139,9 +148,10 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
                     properties: {
                         transcription: { type: "STRING", description: "The transcribed text of the audio" },
                         is_authentic: { type: "BOOLEAN", description: "True if the audio appears naturally human-recorded, False if it shows signs of AI generation or tampering" },
-                        authenticity_reasoning: { type: "STRING", description: "Brief reasoning for why it was deemed authentic or synthetic" }
+                        authenticity_reasoning: { type: "STRING", description: "Brief reasoning for why it was deemed authentic or synthetic" },
+                        primary_query: { type: "STRING", description: "Most concise search query for news verification" }
                     },
-                    required: ["transcription", "is_authentic", "authenticity_reasoning"]
+                    required: ["transcription", "is_authentic", "authenticity_reasoning", "primary_query"]
                 }
             }
         });
@@ -154,3 +164,116 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
         throw new Error(`Failed to analyze audio authenticity: ${error.message || 'Unknown AI error'}`);
     }
 };
+
+const fetchVideoAsBase64 = async (videoUrl) => {
+    try {
+        console.log(`... Downloading video for analysis: ${videoUrl.substring(0, 50)}...`);
+        const response = await fetch(videoUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Safety check for file size (Gemini inline limit ~20-30MB)
+        if (arrayBuffer.byteLength > 20 * 1024 * 1024) {
+            console.warn("[aiModel] Video too large for direct fetch (>20MB). Truncating might be needed.");
+        }
+        
+        return Buffer.from(arrayBuffer).toString('base64');
+    } catch (error) {
+        console.error("Failed to fetch video data:", error.message);
+        return null;
+    }
+};
+
+/**
+ * Multi-modal Video Analysis
+ * Supports both local Base64 (inlineData) and YouTube/Public URLs (fileData)
+ */
+export const analyzeVideo = async ({ base64Video, videoUrl, mimeType }) => {
+    checkAiReadiness();
+    
+    try {
+        const prompt = `
+            Analyze this video content for fact-checking purposes.
+            Requirements:
+            1. Provide a concise summary of the spoken dialogue (avoiding word-for-word transcripts if long).
+            2. Provide a concise summary of key visual events (actions, objects, text on screen).
+            3. Create a "combined_context" which is a single, clear paragraph summarizing the core claim or event depicted in the video.
+            4. Generate a concise "primary_query" (5-10 words) highlighting the specific factual claim (e.g., "Women's Reservation Bill delimitation gerrymandering claims") for news search.
+            IMPORTANT: Ensure the response is a valid JSON object. Keep the total output concise to avoid truncation.
+        `;
+
+        let contents = [];
+        
+        // Input Type Handling
+        if (videoUrl) {
+            const isYouTube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
+            
+            if (isYouTube) {
+                console.log(`[aiModel] Analyzing YouTube Video via Native API: ${videoUrl}`);
+                contents.push({
+                    fileData: {
+                        fileUri: videoUrl,
+                        mimeType: mimeType || 'video/mp4'
+                    }
+                });
+            } else {
+                console.log(`[aiModel] Non-YouTube URL detected (X/Instagram/Direct). Attempting fetch...`);
+                const base64Data = await fetchVideoAsBase64(videoUrl);
+                if (!base64Data) throw new Error("Could not download video from the provided link. Ensure it is a direct video source.");
+                
+                contents.push({
+                    inlineData: {
+                        mimeType: mimeType || 'video/mp4',
+                        data: base64Data
+                    }
+                });
+            }
+        } else if (base64Video) {
+            console.log(`[aiModel] Analyzing Video from Base64 Data (size: ${Math.round(base64Video.length / 1024)} KB)`);
+            contents.push({
+                inlineData: {
+                    mimeType: mimeType || 'video/mp4',
+                    data: base64Video
+                }
+            });
+        } else {
+            throw new Error("Missing video input: Provide base64Video or videoUrl.");
+        }
+
+        // Add the analysis instructions
+        contents.push({ text: prompt });
+
+        const response = await client.models.generateContent({
+            model: MODEL_NAME,
+            contents: contents,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        transcription: { type: "STRING" },
+                        visual_summary: { type: "STRING" },
+                        combined_context: { type: "STRING", description: "The unified claim extraction for search" },
+                        primary_query: { type: "STRING", description: "Concise search string for Google News" }
+                    },
+                    required: ["transcription", "visual_summary", "combined_context", "primary_query"]
+                }
+            }
+        });
+
+        console.log(`[aiModel] Received video analysis. Response length: ${response.text.length} chars.`);
+        
+        try {
+            return JSON.parse(response.text);
+        } catch (jsonError) {
+            console.error("[aiModel] JSON Parse Error. Raw Response:", response.text.substring(0, 500) + "...");
+            throw new Error("AI returned an invalid response format. The video might be too complex or long.");
+        }
+    } catch (error) {
+        console.error("Gemini 3 Video Error:", error);
+        if (error.details) console.error("Error Details:", JSON.stringify(error.details, null, 2));
+        throw new Error(`Failed to analyze video: ${error.message || 'Check for file size or URL validity'}`);
+    }
+};
+
+
+

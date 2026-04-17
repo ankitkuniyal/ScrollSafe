@@ -15,22 +15,27 @@ import {
   FileImage,
   Mic,
   Square,
-  FileAudio
+  FileAudio,
+  Video as VideoIcon,
+  Play
 } from 'lucide-react';
 
 export default function Analyze({ isDark }) {
-  const [mode, setMode] = useState('text'); // 'text', 'image', 'audio'
+  const [mode, setMode] = useState('text'); // 'text', 'image', 'audio', 'video'
   const [imageSubMode, setImageSubMode] = useState('url'); // 'url', 'upload'
   const [audioSubMode, setAudioSubMode] = useState('record'); // 'record', 'upload'
+  const [videoSubMode, setVideoSubMode] = useState('url'); // 'url', 'upload'
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
   const audioInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [videoBlob, setVideoBlob] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
@@ -40,6 +45,8 @@ export default function Analyze({ isDark }) {
     if (mode === 'image' && imageSubMode === 'url' && !content.trim()) return;
     if (mode === 'image' && imageSubMode === 'upload' && !preview) return;
     if (mode === 'audio' && !audioBlob) return;
+    if (mode === 'video' && videoSubMode === 'url' && !content.trim()) return;
+    if (mode === 'video' && videoSubMode === 'upload' && !videoBlob) return;
 
     setLoading(true);
     setResult(null);
@@ -53,6 +60,15 @@ export default function Analyze({ isDark }) {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       options.body = formData;
+    } else if (mode === 'video' && videoSubMode === 'upload') {
+      url = 'http://localhost:3000/api/fact-check/video';
+      const formData = new FormData();
+      formData.append('video', videoBlob, 'video_upload.mp4');
+      options.body = formData;
+    } else if (mode === 'video' && videoSubMode === 'url') {
+      url = 'http://localhost:3000/api/fact-check/video';
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify({ videoUrl: content.trim() });
     } else {
       const payload = {};
       if (mode === 'text') payload.claim = content.trim();
@@ -86,7 +102,6 @@ export default function Analyze({ isDark }) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
-        // For the sake of the demo, we'll inform the user that remote analysis needs a URL
         setError("Note: Google Lens analysis requires a public URL. Local file upload is captured, but please provide a URL for a full verification.");
       };
       reader.readAsDataURL(file);
@@ -99,6 +114,19 @@ export default function Analyze({ isDark }) {
       setAudioBlob(file);
       setPreview(URL.createObjectURL(file));
       setError(null);
+    }
+  };
+
+  const handleVideoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 30 * 1024 * 1024) {
+            setError("Video file is too large. Please upload a file smaller than 30MB.");
+            return;
+        }
+        setVideoBlob(file);
+        setPreview(URL.createObjectURL(file));
+        setError(null);
     }
   };
 
@@ -162,8 +190,15 @@ export default function Analyze({ isDark }) {
   const modes = [
     { id: 'text', label: 'Analyze Text', icon: <TypeIcon size={18} /> },
     { id: 'image', label: 'Verify Image', icon: <ImageIcon size={18} /> },
-    { id: 'audio', label: 'Verify Audio', icon: <Mic size={18} /> }
+    { id: 'audio', label: 'Verify Audio', icon: <Mic size={18} /> },
+    { id: 'video', label: 'Verify Video', icon: <VideoIcon size={18} /> }
   ];
+
+  const getYouTubeId = (url) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
 
   return (
     <section className="max-w-4xl mx-auto px-6 md:px-12 py-10 flex flex-col items-center min-h-[70vh]">
@@ -186,7 +221,7 @@ export default function Analyze({ isDark }) {
           <button
             key={m.id}
             type="button"
-            onClick={() => { setMode(m.id); setContent(''); setResult(null); setError(null); setPreview(null); setAudioBlob(null); }}
+            onClick={() => { setMode(m.id); setContent(''); setResult(null); setError(null); setPreview(null); setAudioBlob(null); setVideoBlob(null); }}
             className={`flex items-center gap-2 px-6 md:px-10 py-2.5 rounded-xl text-sm font-bold transition-all ${
               mode === m.id 
                 ? 'bg-primary text-background shadow-lg text-lg' 
@@ -194,7 +229,7 @@ export default function Analyze({ isDark }) {
             }`}
           >
             {m.icon}
-            {m.label}
+            <span className="hidden md:inline">{m.label}</span>
           </button>
         ))}
       </div>
@@ -269,7 +304,7 @@ export default function Analyze({ isDark }) {
                 </div>
               )}
             </div>
-          ) : (
+          ) : mode === 'audio' ? (
             <div className="flex flex-col gap-6">
               {/* Audio Sub-Mode Toggle */}
               <div className="flex gap-4 justify-center">
@@ -336,6 +371,76 @@ export default function Analyze({ isDark }) {
                       <FileAudio size={40} className="text-muted mb-4" />
                       <span className="text-lg font-bold text-primary">Upload Audio File</span>
                       <span className="text-sm text-muted">Click to browse or drag and drop</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {/* Video Sub-Mode Toggle */}
+              <div className="flex gap-4 justify-center">
+                <button
+                  type="button"
+                  onClick={() => { setVideoSubMode('url'); setContent(''); setError(null); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${videoSubMode === 'url' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-white/5'}`}
+                >
+                  <LinkIcon size={14} /> Video URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setVideoSubMode('upload'); setContent(''); setError(null); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${videoSubMode === 'upload' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-white/5'}`}
+                >
+                  <Upload size={14} /> Upload Video
+                </button>
+              </div>
+
+              {videoSubMode === 'url' ? (
+                <div className="flex flex-col gap-4">
+                  <div className="relative">
+                    <input
+                        type="url"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="Paste YouTube or Direct Video URL... (e.g. 'https://youtube.com/watch?v=...')"
+                        className={`w-full p-6 pr-14 rounded-xl bg-background border ${isDark ? 'border-white/10' : 'border-black/10'} focus:border-accent outline-none text-lg text-primary placeholder-muted/60 transition-colors shadow-inner`}
+                        required
+                    />
+                    <Play className="absolute right-6 top-1/2 -translate-y-1/2 text-muted" size={24} />
+                  </div>
+                  
+                  {getYouTubeId(content) && (
+                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-lg">
+                      <iframe 
+                        className="w-full h-full"
+                        src={`https://www.youtube.com/embed/${getYouTubeId(content)}`}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  )}
+                  <div className="px-2 text-xs text-muted/60 flex items-center gap-1.5 font-medium">
+                    <VideoIcon size={12} /> Public YouTube videos and MP4/WebM direct links are supported
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  onClick={() => videoInputRef.current.click()}
+                  className={`w-full h-56 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all ${preview ? 'border-accent bg-accent/5' : 'border-white/10 hover:border-accent/50 hover:bg-white/5'}`}
+                >
+                  <input type="file" ref={videoInputRef} hidden accept="video/*" onChange={handleVideoFileChange} />
+                  {preview && videoBlob ? (
+                    <div className="flex flex-col items-center gap-3 w-full px-8 py-4">
+                       <video src={preview} controls className="w-full max-w-md rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()} />
+                       <span className="text-sm font-bold text-accent">Video Selected (${(videoBlob.size / (1024 * 1024)).toFixed(1)}MB). Click to change.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <VideoIcon size={40} className="text-muted mb-4" />
+                      <span className="text-lg font-bold text-primary">Upload Video Content</span>
+                      <span className="text-sm text-muted">Max 30MB • MP4, WEBM, MOV</span>
                     </>
                   )}
                 </div>

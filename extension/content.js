@@ -54,7 +54,7 @@ document.addEventListener('mouseup', (e) => {
                     if (currentBtn) currentBtn.remove();
                     currentBtn = null;
 
-                    showLoadingCard(rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                    // showLoadingCard removed
 
                     try {
                         const response = await chrome.runtime.sendMessage({
@@ -167,8 +167,13 @@ function showResultCard(data, top, left) {
 function showErrorCard(errorMsg, top, left) {
     const card = createBaseCard(top, left);
     card.innerHTML = `
-        <h3>Error <button class="close-btn">&times;</button></h3>
-        <p style="color: #dc2626">${errorMsg}</p>
+        <div class="scrollsafe-header header-uncertain">
+            <span>ERROR</span>
+            <button class="close-btn">&times;</button>
+        </div>
+        <div class="scrollsafe-body" style="color: #dc2626">
+            ${errorMsg}
+        </div>
     `;
     
     card.querySelector('.close-btn').addEventListener('click', () => {
@@ -180,18 +185,188 @@ function showErrorCard(errorMsg, top, left) {
     currentCard = card;
 }
 
+/**
+ * Multimodal UI: Floating Video Buttons
+ */
+function injectVideoButtons() {
+    const isYouTube = window.location.hostname.includes('youtube.com');
+    
+    if (isYouTube) {
+        // 1. YouTube Regular (Action Bar integration)
+        // Target modern ytd-watch-metadata buttons or fallback to legacy ytd-video-primary-info-renderer
+        const actionBarSelectors = [
+            'ytd-watch-metadata #top-level-buttons-computed',
+            '#top-level-buttons-computed.ytd-menu-renderer',
+            'ytd-video-primary-info-renderer #top-level-buttons-computed'
+        ];
+        
+        let barFound = false;
+        actionBarSelectors.forEach(selector => {
+            const bars = document.querySelectorAll(`${selector}:not(.scrollsafe-injected)`);
+            bars.forEach(bar => {
+                bar.classList.add('scrollsafe-injected');
+                addYTActionBarBtn(bar, () => window.location.href);
+                barFound = true;
+            });
+        });
+
+        // 2. YouTube Shorts (Action Tray integration)
+        const ytShortsTrays = document.querySelectorAll('reel-action-bar-view-model:not(.scrollsafe-injected)');
+        ytShortsTrays.forEach(tray => {
+            tray.classList.add('scrollsafe-injected');
+            addShortsTrayBtn(tray, () => window.location.href);
+        });
+    } else {
+        // 3. X (Twitter) and other supported sites (Floating Button)
+        const videos = document.querySelectorAll('video:not(.scrollsafe-injected)');
+        videos.forEach(v => {
+            v.classList.add('scrollsafe-injected');
+            const isX = window.location.hostname.includes('twitter.com') || window.location.hostname.includes('x.com');
+            const container = isX ? (v.closest('div[data-testid="videoPlayer"]') || v.parentElement) : v.parentElement;
+            addFloatingBtn(container, () => v.src || window.location.href, isX);
+        });
+    }
+}
+
+function addYTActionBarBtn(container, getUrlFunc) {
+    const btnViewModel = document.createElement('button-view-model');
+    btnViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer scrollsafe-yt-action-item';
+    
+    btnViewModel.innerHTML = `
+        <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-leading" aria-label="Analyze">
+            <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 20px; height: 20px;">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+            <div class="yt-spec-button-shape-next__button-text-content">Analyze</div>
+            <yt-touch-feedback-shape aria-hidden="true" class="ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse">
+                <div class="ytSpecTouchFeedbackShapeStroke"></div>
+                <div class="ytSpecTouchFeedbackShapeFill"></div>
+            </yt-touch-feedback-shape>
+        </button>
+    `;
+
+    btnViewModel.querySelector('button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        if (isAnalyzingVideo) return;
+        isAnalyzingVideo = true;
+        
+        const videoUrl = getUrlFunc();
+        // Silent analysis - result handled in background/frontend
+        chrome.runtime.sendMessage({
+            action: 'checkVideoFact',
+            videoUrl: videoUrl
+        }).then(response => {
+            isAnalyzingVideo = false;
+        }).catch(err => {
+            isAnalyzingVideo = false;
+        });
+    });
+
+    container.appendChild(btnViewModel);
+}
+
+function addShortsTrayBtn(tray, getUrlFunc) {
+    const label = document.createElement('label');
+    label.className = 'ytSpecButtonShapeWithLabelHost scrollsafe-shorts-tray-item';
+    label.innerHTML = `
+        <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-l yt-spec-button-shape-next--icon-button">
+            <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
+                <svg id="scrollsafe-shorts-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 24px; height: 24px;">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+        </button>
+        <div class="ytSpecButtonShapeWithLabelLabel" style="font-size: 10px; margin-top: 2px;">
+            <span class="ytAttributedStringHost">Analyze</span>
+        </div>
+    `;
+
+    label.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        if (isAnalyzingVideo) return;
+        isAnalyzingVideo = true;
+        
+        const videoUrl = getUrlFunc();
+        chrome.runtime.sendMessage({
+            action: 'checkVideoFact',
+            videoUrl: videoUrl
+        }).then(response => {
+            isAnalyzingVideo = false;
+        }).catch(err => {
+            isAnalyzingVideo = false;
+        });
+    });
+
+    tray.appendChild(label);
+}
+
+function addFloatingBtn(parent, getUrlFunc, isX = false) {
+    const btn = document.createElement('button');
+    btn.className = `scrollsafe-video-btn ${isX ? 'scrollsafe-btn-x' : ''}`;
+    const strokeColor = isX ? 'white' : '#3b82f6';
+    
+    btn.innerHTML = `
+        <svg id="scrollsafe-float-icon" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="3">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+    `;
+    
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        if (isAnalyzingVideo) return;
+        isAnalyzingVideo = true;
+
+        const videoUrl = getUrlFunc();
+        const top = window.scrollY + 100;
+        const left = window.scrollX + (window.innerWidth / 2) - 190;
+        
+        chrome.runtime.sendMessage({
+            action: 'checkVideoFact',
+            videoUrl: videoUrl
+        }).then(response => {
+            isAnalyzingVideo = false;
+            if (response.error) {
+                showErrorCard(response.error, top, left);
+            } else {
+                showResultCard(response.data, top, left);
+            }
+        }).catch(err => {
+            isAnalyzingVideo = false;
+            showErrorCard('Extension error.', top, left);
+        });
+    });
+
+    parent.style.position = parent.style.position || 'relative';
+    parent.appendChild(btn);
+}
+
+
+// Run injection periodically to handle dynamic content
+setInterval(injectVideoButtons, 2000);
+
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'triggerImageCheck') {
+    if (message.action === 'triggerImageCheck' || message.action === 'triggerVideoCheck') {
         const top = window.scrollY + Math.max(100, window.innerHeight / 2 - 100);
         const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
         
         removeUI();
-        showLoadingCard(top, left);
+        // showLoadingCard removed as per minimalism request
 
-        chrome.runtime.sendMessage({
-            action: 'checkFact',
-            imageUrl: message.imageUrl
-        }).then(response => {
+        const action = message.action === 'triggerImageCheck' ? 'checkFact' : 'checkVideoFact';
+        const payload = message.action === 'triggerImageCheck' 
+            ? { action, imageUrl: message.imageUrl } 
+            : { action, videoUrl: message.videoUrl };
+
+        chrome.runtime.sendMessage(payload).then(response => {
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
@@ -202,3 +377,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
     }
 });
+

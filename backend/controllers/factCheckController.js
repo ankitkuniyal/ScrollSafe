@@ -1,7 +1,7 @@
 import { getEmbedding } from '../services/embeddingService.js';
 import { fetchLiveNews } from '../services/newsService.js';
 import { searchSimilarClaims } from '../models/qdrantModel.js';
-import { evaluateClaim, checkAiReadiness, analyzeAudio } from '../models/aiModel.js';
+import { evaluateClaim, checkAiReadiness, analyzeAudio, analyzeVideo } from '../models/aiModel.js';
 
 import { fetchImageContext } from '../services/imageService.js';
 import { extractLinkContext } from '../services/linkService.js';
@@ -32,13 +32,51 @@ export const processAudioFactCheck = async (req, res, next) => {
             claimWithContext += `\n\n[SYSTEM ALERT: This audio was detected as POTENTIALLY AI-GENERATED or DEEPFAKE. Reason: ${audioAnalysis.authenticity_reasoning}]`;
         }
 
-        // Pass the transcription (with authenticity alert if needed) as the claim to the next middleware
+        // Pass the transcription (with authenticity alert if needed) as the claim
+        // and a refined search query to the next middleware
         req.body.claim = claimWithContext;
+        req.body.newsQuery = audioAnalysis.primary_query;
         next();
     } catch (e) {
         return res.status(500).json({ error: e.message });
     }
 };
+
+export const processVideoFactCheck = async (req, res, next) => {
+    try {
+        const { videoUrl } = req.body;
+        let base64Video = null;
+        let mimeType = null;
+
+        if (req.file) {
+            console.log(`\n[POST /api/fact-check/video] Received Video Upload: ${req.file.mimetype}, size: ${req.file.size}`);
+            base64Video = req.file.buffer.toString('base64');
+            mimeType = req.file.mimetype;
+        } else if (videoUrl) {
+            console.log(`\n[POST /api/fact-check/video] Received Video URL: ${videoUrl}`);
+        } else {
+            return res.status(400).json({ error: 'Video file or videoUrl is required' });
+        }
+
+        const videoAnalysis = await analyzeVideo({ base64Video, videoUrl, mimeType });
+        const context = videoAnalysis.combined_context;
+
+        console.log(`[POST /api/fact-check/video] Context Extracted: "${context.substring(0, 100)}..."`);
+        
+        if (!context || context.trim().length === 0) {
+            return res.status(400).json({ error: 'Could not identify the core claim or events in this video.' });
+        }
+
+        // Enrich the claim with transcription and visual notes to help the decision phase
+        req.body.claim = `Video Content Summary: ${context}\n\nTranscription: ${videoAnalysis.transcription}\n\nVisuals: ${videoAnalysis.visual_summary}`;
+        req.body.newsQuery = videoAnalysis.primary_query;
+        next();
+    } catch (e) {
+        console.error("[processVideoFactCheck Error]", e);
+        return res.status(500).json({ error: e.message });
+    }
+};
+
 
 export const processFactCheck = async (req, res) => {
     try {
@@ -64,6 +102,9 @@ export const processFactCheck = async (req, res) => {
             } catch (e) {
                 return res.status(400).json({ error: e.message });
             }
+        } else if (req.body.newsQuery) {
+            // Priority 1: Specifically extracted search query from Audio/Video
+            newsQuery = req.body.newsQuery;
         } else if (!claim || claim.trim().length === 0) {
             return res.status(400).json({ error: 'Claim text, imageUrl, or linkUrl is required' });
         }
