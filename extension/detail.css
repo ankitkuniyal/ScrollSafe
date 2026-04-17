@@ -313,3 +313,89 @@ a:hover {
     .grid-2 { grid-template-columns: 1fr; }
     .hero-layout { flex-direction: column-reverse; text-align: center; }
 }
+
+/* BENTO GRID SYSTEM */
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 150px;
+    gap: 16px;
+    margin-bottom: 40px;
+}
+
+.bento-large { grid-column: span 2; grid-row: span 2; }
+.bento-tall { grid-row: span 2; }
+.bento-wide { grid-column: span 2; }
+.bento-standard { grid-column: span 1; grid-row: span 1; }
+
+.thumbnail-item {
+    background: white;
+    border: 1px solid rgba(0,0,0,0.08); /* Border as requested */
+    border-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s;
+    text-decoration: none !important;
+}
+
+.thumbnail-item:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    border-color: var(--color-brand);
+}
+
+.image-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+}
+
+.image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.9;
+    transition: transform 0.5s, opacity 0.3s;
+}
+
+.thumbnail-item:hover img {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.thumbnail-caption {
+    padding: 14px 16px; /* Separate div for caption */
+    background: white;
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+.caption-source {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--color-brand);
+    margin-bottom: 6px;
+    letter-spacing: 0.8px;
+}
+
+.caption-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .bento-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+

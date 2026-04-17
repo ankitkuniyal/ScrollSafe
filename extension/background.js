@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "checkImage",
-        title: "Verify Image with ScrollSafe",
+        title: "Analyze Image with ScrollSafe",
         contexts: ["image"]
     });
 });

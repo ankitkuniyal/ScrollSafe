@@ -406,22 +406,122 @@ export default function Analyze({ isDark }) {
               </div>
             </div>
             
-            <div className="p-8 md:p-10">
-              <h3 className="text-xl font-bold text-primary mb-2">Refined Claim Context</h3>
-              <div className="p-4 rounded-xl bg-primary/5 text-muted italic mb-6 border border-primary/10">
-                "{result.claim}"
+            <div className={`p-8 md:p-10 ${isDark ? 'bg-surface/50' : 'bg-white'}`}>
+              {/* 1. Google Image Explanation (if available) */}
+              {(result.googleContext || (mode !== 'image' && result.claim)) && (
+                <div className="mb-10">
+                  <h3 className="text-sm font-black text-accent uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Info size={16} /> 
+                    {mode === 'image' ? 'Google Image Interpretation' : 'Original Claim Context'}
+                  </h3>
+                  <div className={`p-6 rounded-2xl border italic text-lg leading-relaxed ${isDark ? 'bg-white/5 border-white/10 text-white/80' : 'bg-black/5 border-black/5 text-black/80'}`}>
+                    "{result.googleContext || result.claim}"
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Visual Evidence Gallery - Shown only for Image Mode */}
+              {mode === 'image' && result.visualMatches?.length > 0 && (
+                <div className="mb-10">
+                  <h3 className="text-sm font-black text-accent uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <ImageIcon size={16} /> Visual Evidence & Related Sources
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {result.visualMatches.slice(0, 8).map((match, idx) => (
+                      <a 
+                        key={idx} 
+                        href={match.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`group relative rounded-2xl overflow-hidden border transition-all h-36 ${isDark ? 'border-white/10 bg-white/5' : 'border-black/5 bg-black/5'} hover:border-accent/50 shadow-lg`}
+                      >
+                        <img 
+                          src={match.thumbnail} 
+                          alt={match.title} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100" 
+                        />
+                        <div className="absolute inset-x-0 bottom-0 bg-black/70 backdrop-blur-md p-2 translate-y-full group-hover:translate-y-0 transition-transform">
+                          <p className="text-[10px] font-bold text-white truncate mb-0.5">{match.source || 'Direct Source'}</p>
+                          <p className="text-[8px] text-accent font-black uppercase tracking-widest">Explore Context</p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Live Web Verification (News) */}
+              <div className="mb-10 content-section">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-black text-accent uppercase tracking-widest flex items-center gap-2">
+                    <Search size={16} /> Live Web Verification
+                  </h3>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${result.sources?.news?.length > 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                    {result.sources?.news?.length > 0 ? 'High Web Coverage' : 'Zero Coverage'}
+                  </div>
+                </div>
+
+                {result.sources?.news?.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {result.sources.news.map((article, idx) => (
+                      <a 
+                        key={idx} 
+                        href={article.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-white/5 border-white/10 hover:border-accent/40' : 'bg-black/5 border-black/5 hover:border-accent/40'}`}
+                      >
+                        <div className="text-[10px] font-bold text-accent mb-2 uppercase tracking-widest">{article.source} • {article.date}</div>
+                        <h4 className="font-bold text-primary text-sm mb-2 line-clamp-2">{article.title}</h4>
+                        {article.snippet && <p className="text-xs text-muted line-clamp-2 mb-3 leading-relaxed">{article.snippet}</p>}
+                        <div className="text-[10px] font-bold text-primary/40 underline group-hover:text-accent transition-colors">Read Full Article →</div>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`p-6 rounded-2xl border border-dashed flex flex-col items-center justify-center text-center ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
+                    <AlertTriangle size={32} className="text-red-500/50 mb-3" />
+                    <p className="text-sm text-muted font-medium italic">
+                      {mode === 'image' && result.visualMatches?.length > 0 
+                        ? 'No direct breaking news found, but strong visual evidence and historical records were discovered below.' 
+                        : 'No breaking news found corroborating or contradicting this media content.'}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <h3 className="text-xl font-bold text-primary mb-3">ScrollSafe Verdict</h3>
-              <p className="text-lg leading-relaxed text-muted mb-8">
-                {result.explanation || 'No further explanation provided by the fact-checking API.'}
-              </p>
-              
-              <div className={`flex items-center justify-between pt-6 border-t ${isDark ? 'border-white/10' : 'border-black/10'}`}>
-                <div className="flex items-center gap-2 text-sm text-muted">
-                  <ShieldCheck size={16} className="text-green-500" />
-                  <span>Verified by ScrollSafe Multimodal AI</span>
+              {/* 4. Historical Database (Qdrant) */}
+              {result.sources?.qdrant?.length > 0 && (
+                <div className="mb-10">
+                  <h3 className="text-sm font-black text-accent uppercase tracking-widest mb-6 flex items-center gap-2">
+                     <ShieldCheck size={16} /> Historical Database Matches
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {result.sources.qdrant.map((match, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl border flex items-center justify-between ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
+                        <div className="flex-1 min-w-0 mr-4">
+                          <p className="text-xs text-muted leading-relaxed line-clamp-1 italic">"{match.claim}"</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                           <div className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${match.label === 'TRUE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                             {match.label}
+                           </div>
+                           <div className="text-xs font-bold text-primary">{(match.score * 100).toFixed(0)}% Match</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* 5. ScrollSafe Final Analysis */}
+              <div className={`mt-12 p-8 rounded-3xl border-2 ${isDark ? 'bg-accent/5 border-accent/20' : 'bg-accent/5 border-accent/10'}`}>
+                <h3 className="text-sm font-black text-accent uppercase tracking-widest mb-4 flex items-center gap-2">
+                   <ShieldCheck size={16} /> ScrollSafe Final Analysis
+                </h3>
+                <p className="text-xl font-medium leading-relaxed text-primary">
+                  {result.explanation || 'Final analysis pending.'}
+                </p>
               </div>
             </div>
           </motion.div>
