@@ -31,20 +31,18 @@ function renderDashboard(data) {
     if (hasQdrant) {
         strongQdrantMatches.forEach(item => {
             const similarity = (item.score * 100).toFixed(1);
-            let scoreColor = item.score > 0.8 ? 'verdict-TRUE' : 'verdict-UNCERTAIN';
-            if (item.score < 0.5) scoreColor = 'verdict-FALSE';
+            let scoreColor = item.score > 0.8 ? 'green' : 'gray';
+            if (item.score < 0.5) scoreColor = 'red';
             
             qdrantHTML += `
-                <div class="source-item">
-                    <div class="source-meta">
-                        <span>Database Memory</span>
-                        <span class="badge ${scoreColor}" style="color:var(--text-primary); border:1px solid rgba(0,0,0,0.1);">${similarity}% Match</span>
-                    </div>
-                    <div class="source-title">${item.claim}</div>
-                    <div class="source-desc" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05);">
-                        <strong style="color: var(--text-primary);">Label:</strong> ${item.label.toUpperCase()}<br>
-                        <strong style="color: var(--text-primary);">Fact Checkers:</strong> ${item.fact_checkers}<br>
-                        <strong style="color: var(--text-primary);">Explanation:</strong> ${item.explanation}
+                <div class="evidence-item">
+                    <div class="evidence-meta">
+                        <span class="evidence-source">Database Memory • ${similarity}% Match</span>
+                        <span class="evidence-item-title">${item.claim}</span>
+                        <span style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                            <strong>Label:</strong> ${item.label.toUpperCase()} • <strong>Fact Checkers:</strong> ${item.fact_checkers}
+                            <br>${item.explanation}
+                        </span>
                     </div>
                 </div>
             `;
@@ -56,121 +54,129 @@ function renderDashboard(data) {
     if (sources.news && sources.news.length > 0) {
         sources.news.forEach(item => {
             newsHTML += `
-                <div class="source-item">
-                    <div class="source-meta">
-                        <span>${item.source}</span>
-                        <span style="color:var(--text-secondary); font-weight:500;">${item.date}</span>
+                <div class="evidence-item">
+                    <div class="evidence-meta">
+                        <span class="evidence-source">${item.source} • ${item.date}</span>
+                        <span class="evidence-item-title">${item.title}</span>
                     </div>
-                    <div class="source-title">
-                        <a href="${item.link}" target="_blank">${item.title} ↗</a>
-                    </div>
-                    ${item.snippet ? `<div class="source-desc" style="margin-top: 8px;">${item.snippet}</div>` : ''}
+                    <a href="${item.link}" target="_blank" class="evidence-link-btn">Read Article</a>
                 </div>
             `;
         });
     } else {
         if (data.score && parseFloat(data.score) > 0.85) {
-            newsHTML = `<div class="source-item" style="text-align: center; padding: 40px 20px;">
-                <svg style="margin-bottom: 16px; width: 32px; height: 32px; color: var(--color-brand);" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><br>
-                <div class="source-title">Skipped Live Search</div>
-                <div class="source-desc">Database match was extremely high (>85%). No further verification required.</div>
+            newsHTML = `<div class="evidence-item" style="text-align: center; padding: 40px 20px; flex-direction: column;">
+                <svg style="margin-bottom: 16px; width: 32px; height: 32px; color: var(--color-brand);" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <div style="font-weight: bold; margin-bottom: 8px;">Skipped Live Search</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">Database match was extremely high (>85%). No further verification required.</div>
             </div>`;
         } else {
-            newsHTML = `<div class="source-item" style="text-align: center; padding: 40px 20px;">
-                <p class="source-title">Zero Coverage</p>
-                <p class="source-desc">${isImage ? 'No direct breaking news found, but visual evidence and historical records were discovered below.' : 'No breaking news found corroborating or contradicting this.'}</p>
+            newsHTML = `<div class="evidence-item" style="text-align: center; padding: 40px 20px; flex-direction: column;">
+                <div style="font-weight: bold; margin-bottom: 8px;">Zero Coverage</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">${isImage ? 'No direct breaking news found, but visual evidence and historical records were discovered below.' : 'No breaking news found corroborating or contradicting this.'}</div>
             </div>`;
         }
     }
 
-    // Build Bento Gallery if image
+    // Build Visual Citations Gallery if image
     let galleryHTML = '';
     if (isImage) {
         galleryHTML = `
-            <div class="card" style="background: transparent; border: none; padding: 0; box-shadow: none;">
-                <div class="section-title">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    Visual Evidence Gallery
-                </div>
-                <div class="image-gallery bento-grid">
-                    ${data.visualMatches.slice(0, 7).map((v, i) => {
-                        let bentoClass = 'bento-standard';
-                        if (i === 0) bentoClass = 'bento-large';
-                        else if (i === 1) bentoClass = 'bento-tall';
-                        else if (i === 2) bentoClass = 'bento-wide';
-                        
-                        return `
-                            <a href="${v.link}" target="_blank" class="thumbnail-item ${bentoClass}">
-                                <div class="image-container">
-                                    <img src="${v.thumbnail}" alt="${v.title}">
-                                </div>
-                                <div class="thumbnail-caption">
-                                    <span class="caption-source">${v.source || 'Direct Source'}</span>
-                                    <p class="caption-title">${v.title.split('...')[0].substring(0, 45)}${v.title.length > 45 ? '...' : ''}</p>
-                                </div>
-                            </a>
-                        `;
-                    }).join('')}
-                </div>
+            <div class="visual-citations-grid">
+                ${data.visualMatches.slice(0, 6).map((v, i) => {
+                    return `
+                        <a href="${v.link}" target="_blank" class="visual-citation-item">
+                            <div class="vc-image-container">
+                                <img src="${v.thumbnail}" alt="${v.title}">
+                            </div>
+                            <div class="vc-text-content">
+                                <span class="vc-source">${v.source || 'Direct Source'}</span>
+                                <p class="vc-title">${v.title.split('...')[0].substring(0, 65)}${v.title.length > 65 ? '...' : ''}</p>
+                            </div>
+                        </a>
+                    `;
+                }).join('')}
             </div>
         `;
     }
 
     let parsedConf = parseInt(data.confidence);
     const confVal = !isNaN(parsedConf) ? parsedConf : 50;
-    const radius = 70;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (confVal / 100) * circumference;
+
+    let verdictIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+    let verdictKey = data.verdict?.toLowerCase() || 'uncertain';
+    let bgClass = 'verdict-bg-default';
+    
+    if (verdictKey === 'true') {
+        verdictIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>';
+        bgClass = 'verdict-bg-true';
+    } else if (verdictKey === 'false') {
+        verdictIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg>';
+        bgClass = 'verdict-bg-false';
+    } else if (verdictKey === 'uncertain' || verdictKey === 'misleading') {
+        verdictIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>';
+        bgClass = 'verdict-bg-uncertain';
+    }
 
     main.innerHTML = `
-        <div class="card hero-layout">
-            <div class="hero-content">
-                <div class="verdict-badge verdict-${data.verdict}">${data.verdict}</div>
-                ${!isImage ? `<div class="claim-text">"${data.claim}"</div>` : ''}
-                <div class="explanation">
-                    <span class="analysis-label">ScrollSafe Analysis</span>${data.explanation}
+        <div class="result-stack">
+            <!-- Verdict Header Top Bar -->
+            <div class="verdict-header ${bgClass}">
+                <div class="verdict-title">
+                    ${verdictIcon}
+                    <span>${data.verdict || 'Uncertain'}</span>
+                </div>
+                <div class="verdict-confidence">
+                    <span class="conf-label">Confidence</span>
+                    <span class="conf-value">${confVal}%</span>
                 </div>
             </div>
-            
-            <div class="hero-meter">
-                <svg class="meter-svg" viewBox="0 0 160 160">
-                    <circle class="meter-circle-bg" cx="80" cy="80" r="70"></circle>
-                    <circle class="meter-circle-fg stroke-${data.verdict}" cx="80" cy="80" r="70" 
-                        stroke-dasharray="${circumference}" 
-                        stroke-dashoffset="${circumference}">
-                    </circle>
-                </svg>
-                <div class="meter-text" style="color: var(--color-${data.verdict.toLowerCase()})">${confVal}%</div>
-                <div class="meter-label">Confidence</div>
-            </div>
-        </div>
 
-        ${galleryHTML}
+            <!-- Vertical Stack Content -->
+            <div class="result-content">
+                <!-- Main Explanation -->
+                <div>
+                    ${!isImage && data.claim ? `<div class="claim-text">"${data.claim}"</div>` : ''}
+                    <p class="explanation-text">${data.explanation || 'Detailed analysis is currently pending. Please check source records.'}</p>
+                </div>
 
-        <div class="grid-container ${hasQdrant ? 'grid-2' : 'grid-1'}">
-            ${hasQdrant ? `
-                <div class="card" style="margin-bottom: 0;">
-                    <div class="section-title">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        Historical Database Matches
+                <!-- Web Evidence -->
+                ${newsHTML ? `
+                <div class="evidence-section">
+                    <h3 class="evidence-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 
+                        Verified Web Sources
+                    </h3>
+                    <div class="evidence-list">
+                        ${newsHTML}
                     </div>
-                    ${qdrantHTML}
                 </div>
-            ` : ''}
-            
-            <div class="card" style="margin-bottom: 0;">
-                <div class="section-title">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-                    Live Web Verification
+                ` : ''}
+
+                <!-- Visual Citations -->
+                ${galleryHTML ? `
+                <div class="evidence-section">
+                    <h3 class="evidence-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        Visual Citations
+                    </h3>
+                    ${galleryHTML}
                 </div>
-                ${newsHTML}
+                ` : ''}
+
+                <!-- Historical Database Matches -->
+                ${hasQdrant ? `
+                <div class="evidence-section">
+                    <h3 class="evidence-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        Historical Database Matches
+                    </h3>
+                    <div class="evidence-list">
+                        ${qdrantHTML}
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
-
-    // Trigger animation for circular meter after render
-    setTimeout(() => {
-        const circle = main.querySelector('.meter-circle-fg');
-        if (circle) circle.style.strokeDashoffset = offset;
-    }, 100);
 }
