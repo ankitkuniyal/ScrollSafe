@@ -175,7 +175,7 @@ export const processFactCheck = async (req, res) => {
                      else flatNews.push(a);
                  });
                  
-                 const bestArticles = flatNews.slice(0, 5);
+                 const bestArticles = flatNews.slice(0, 10);
                  bestArticles.forEach((article, index) => {
                      sourceNews.push({
                          title: article.title,

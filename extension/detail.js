@@ -166,7 +166,6 @@ function renderDashboard(data) {
             <div class="result-content">
                 <!-- Main Explanation -->
                 <div>
-                    ${!isImage && data.claim ? `<div class="claim-text">"${data.claim}"</div>` : ''}
                     <p class="explanation-text">${data.explanation || 'Detailed analysis is currently pending. Please check source records.'}</p>
                 </div>
 
