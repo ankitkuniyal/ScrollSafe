@@ -37,21 +37,21 @@ function App() {
 
   return (
     <div className="relative min-h-screen selection:bg-accent/30 overflow-hidden font-sans transition-colors duration-300">
-      
+
       {/* Dynamic Background */}
       <div className="fixed inset-0 z-0 pointer-events-none flex justify-center overflow-hidden">
-        <motion.div 
+        <motion.div
           animate={{ scale: [1, 1.05, 1], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-20%] w-[1200px] h-[600px] bg-accent/20 blur-[150px] rounded-[100%]" 
+          className="absolute top-[-20%] w-[1200px] h-[600px] bg-accent/20 blur-[150px] rounded-[100%]"
         />
-        <div 
-          className="absolute inset-0 transition-opacity duration-500" 
-          style={{ 
+        <div
+          className="absolute inset-0 transition-opacity duration-500"
+          style={{
             backgroundImage: gridSvg,
             maskImage: `linear-gradient(to bottom, ${isDark ? '#000' : 'rgba(0,0,0,0.8)'}, transparent 80%)`,
             WebkitMaskImage: `linear-gradient(to bottom, ${isDark ? '#000' : 'rgba(0,0,0,0.8)'}, transparent 80%)`
-          }} 
+          }}
         />
       </div>
 
@@ -68,29 +68,32 @@ function App() {
           <div className="hidden md:flex items-center gap-8 lg:gap-10">
             {location.pathname === '/' ? (
               <>
-                <a href="#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</a>
-                <a href="#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</a>
                 <a href="#demo" className="text-sm font-medium px-4 py-1.5 text-muted rounded hover:text-primary transition-all hover:-translate-y-0.5 flex items-center gap-1.5">
                   <PlayCircle size={14} /> Demo
                 </a>
+                <a href="#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</a>
+                <a href="#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</a>
+                <a href="#pricing" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Pricing</a>
+
               </>
             ) : (
               <>
-                <Link to="/#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</Link>
-                <Link to="/#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</Link>
                 <Link to="/#demo" className="text-sm font-medium px-4 py-1.5 text-muted rounded hover:text-primary transition-all hover:-translate-y-0.5 flex items-center gap-1.5">
                   <PlayCircle size={14} /> Demo
                 </Link>
+                <Link to="/#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</Link>
+                <Link to="/#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</Link>
+                <Link to="/#pricing" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Pricing</Link>
+
               </>
             )}
             <Link to="/analyze" className={`text-sm font-medium transition-all hover:-translate-y-0.5 ${location.pathname === '/analyze' ? 'text-primary' : 'text-muted hover:text-primary'}`}>
               Analyzer
             </Link>
-            <a href="#pricing" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Pricing</a>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <button 
+            <button
               onClick={toggleTheme}
               className="p-2 rounded-full text-muted hover:text-primary hover:bg-surface border border-transparent hover:border-surfaceBorder transition-all"
             >
@@ -138,7 +141,7 @@ function App() {
       <footer className="border-t border-surfaceBorder bg-surface relative z-10">
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-16">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-            
+
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-6">
                 <ShieldCheck size={24} className="text-accent" />
@@ -154,7 +157,7 @@ function App() {
               <ul className="space-y-4 text-sm text-muted">
                 <li><a href="#" className="hover:text-primary transition-colors">Download Extension</a></li>
                 <li><Link to="/analyze" className="hover:text-primary transition-colors">Text Analyzer</Link></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+                <li><Link to="/#pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
               </ul>
             </div>
 

@@ -16,7 +16,7 @@ const responseSchema = {
     properties: {
         verdict: {
             type: "STRING",
-            description: "Must be TRUE, FALSE, MISLEADING, or UNCERTAIN",
+            description: "Must be TRUE, FALSE, or UNCERTAIN",
         },
         confidence: {
             type: "INTEGER",
