@@ -44,7 +44,7 @@ export const processAudioFactCheck = async (req, res, next) => {
 
 export const processVideoFactCheck = async (req, res, next) => {
     try {
-        const { videoUrl } = req.body;
+        const { videoUrl, videoContext } = req.body;
         let base64Video = null;
         let mimeType = null;
 
@@ -53,12 +53,12 @@ export const processVideoFactCheck = async (req, res, next) => {
             base64Video = req.file.buffer.toString('base64');
             mimeType = req.file.mimetype;
         } else if (videoUrl) {
-            console.log(`\n[POST /api/fact-check/video] Received Video URL: ${videoUrl}`);
+            console.log(`\n[POST /api/fact-check/video] Received Video URL: ${videoUrl} | Metadata: ${videoContext || 'None'}`);
         } else {
             return res.status(400).json({ error: 'Video file or videoUrl is required' });
         }
 
-        const videoAnalysis = await analyzeVideo({ base64Video, videoUrl, mimeType });
+        const videoAnalysis = await analyzeVideo({ base64Video, videoUrl, mimeType, videoContext });
         const context = videoAnalysis.combined_context;
 
         console.log(`[POST /api/fact-check/video] Context Extracted: "${context.substring(0, 100)}..."`);
@@ -67,8 +67,13 @@ export const processVideoFactCheck = async (req, res, next) => {
             return res.status(400).json({ error: 'Could not identify the core claim or events in this video.' });
         }
 
-        // Enrich the claim with transcription and visual notes to help the decision phase
-        req.body.claim = `Video Content Summary: ${context}\n\nTranscription: ${videoAnalysis.transcription}\n\nVisuals: ${videoAnalysis.visual_summary}`;
+        // Enrich the claim with transcription, visual notes, and metadata
+        let enrichedClaim = `Video Content Summary: ${context}\n\nTranscription: ${videoAnalysis.transcription}\n\nVisuals: ${videoAnalysis.visual_summary}`;
+        if (videoContext) {
+            enrichedClaim = `On-Page Metadata (Title/Text): ${videoContext}\n\n${enrichedClaim}`;
+        }
+        
+        req.body.claim = enrichedClaim;
         req.body.newsQuery = videoAnalysis.primary_query;
         next();
     } catch (e) {
@@ -84,8 +89,16 @@ export const processFactCheck = async (req, res) => {
         
         let visualMatches = [];
         let newsQuery = claim; 
+        let base64Image = null;
 
-        if (imageUrl) {
+        if (req.file) {
+            console.log(`\n[POST /api/fact-check] Received Image Upload: ${req.file.mimetype}`);
+            base64Image = req.file.buffer.toString('base64');
+            // When uploading a file, we skip fetchImageContext (SerpApi/Lens) as it requires a URL
+            // and use Gemini vision directly on the base64 data.
+            claim = claim || "Image Uploaded for Analysis";
+            newsQuery = claim;
+        } else if (imageUrl) {
             console.log(`\n[POST /api/fact-check] Received Image URL: ${imageUrl}`);
             try {
                 const imgResult = await fetchImageContext(imageUrl);
@@ -205,7 +218,7 @@ ${liveNewsBlock}
 
         // STEP 4: Execution
         console.log("-> Pitching to Gemini for Final Decision (Vision + Context)...");
-        const finalDecisionJson = await evaluateClaim(prompt, imageUrl);
+        const finalDecisionJson = await evaluateClaim(prompt, imageUrl, base64Image);
         console.log("<- Verdict Result:", finalDecisionJson.verdict);
 
         // STEP 5: Response Emittance

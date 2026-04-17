@@ -1,5 +1,6 @@
 let currentBtn = null;
 let currentCard = null;
+let isAnalyzingVideo = false;
 
 function removeUI() {
     if (currentBtn) {
@@ -54,7 +55,7 @@ document.addEventListener('mouseup', (e) => {
                     if (currentBtn) currentBtn.remove();
                     currentBtn = null;
 
-                    // showLoadingCard removed
+                    showLoadingCard(rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
 
                     try {
                         const response = await chrome.runtime.sendMessage({
@@ -246,39 +247,49 @@ function addYTActionBarBtn(container, getUrlFunc) {
         </button>
     `;
 
-    btnViewModel.querySelector('button').addEventListener('click', (e) => {
+    btnViewModel.querySelector('button').addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
         
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
         
+        btnViewModel.classList.add('loading');
         const videoUrl = getUrlFunc();
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        removeUI();
+        // Extract Title from YouTube
+        const videoTitle = document.querySelector('h1.ytd-watch-metadata')?.innerText || document.title;
         
-        chrome.runtime.sendMessage({
-            action: 'checkVideoFact',
-            videoUrl: videoUrl
-        }).then(response => {
+        removeUI();
+        showLoadingCard(top, left);
+        
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'checkVideoFact',
+                videoUrl: videoUrl,
+                context: videoTitle
+            });
+            
             isAnalyzingVideo = false;
+            btnViewModel.classList.remove('loading');
+            
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
                 showResultCard(response.data, top, left);
             }
-        }).catch(err => {
+        } catch (err) {
             isAnalyzingVideo = false;
+            btnViewModel.classList.remove('loading');
             showErrorCard('Extension error: Analysis failed.', top, left);
-        });
+        }
     });
 
     container.appendChild(btnViewModel);
 }
 
-let isAnalyzingVideo = false;
 
 function addShortsTrayBtn(tray, getUrlFunc) {
     const label = document.createElement('label');
@@ -293,33 +304,44 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         </button>
     `;
 
-    label.addEventListener('click', (e) => {
+    label.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
         
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
         
+        label.classList.add('loading');
         const videoUrl = getUrlFunc();
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        removeUI();
+        // Extract Title from Shorts
+        const shortsTitle = document.querySelector('reel-player-header-view-model h2')?.innerText || "YouTube Short";
         
-        chrome.runtime.sendMessage({
-            action: 'checkVideoFact',
-            videoUrl: videoUrl
-        }).then(response => {
+        removeUI();
+        showLoadingCard(top, left);
+        
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'checkVideoFact',
+                videoUrl: videoUrl,
+                context: shortsTitle
+            });
+            
             isAnalyzingVideo = false;
+            label.classList.remove('loading');
+            
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
                 showResultCard(response.data, top, left);
             }
-        }).catch(err => {
+        } catch (err) {
             isAnalyzingVideo = false;
+            label.classList.remove('loading');
             showErrorCard('Extension error: Analysis failed.', top, left);
-        });
+        }
     });
 
     tray.appendChild(label);
@@ -336,31 +358,47 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
         </svg>
     `;
     
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
         
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
 
+        btn.classList.add('loading');
         const videoUrl = getUrlFunc();
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        chrome.runtime.sendMessage({
-            action: 'checkVideoFact',
-            videoUrl: videoUrl
-        }).then(response => {
+        // Extract Tweet text from X
+        let tweetText = "";
+        try {
+            const tweetContainer = btn.closest('article') || btn.closest('div[data-testid="cellInnerDiv"]');
+            tweetText = tweetContainer?.querySelector('div[data-testid="tweetText"]')?.innerText || "";
+        } catch (e) {}
+        
+        showLoadingCard(top, left);
+        
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'checkVideoFact',
+                videoUrl: videoUrl,
+                context: tweetText
+            });
+            
             isAnalyzingVideo = false;
+            btn.classList.remove('loading');
+            
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
                 showResultCard(response.data, top, left);
             }
-        }).catch(err => {
+        } catch (err) {
             isAnalyzingVideo = false;
+            btn.classList.remove('loading');
             showErrorCard('Extension error.', top, left);
-        });
+        }
     });
 
     parent.style.position = parent.style.position || 'relative';
@@ -378,7 +416,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
         
         removeUI();
-        // showLoadingCard removed as per minimalism request
+        showLoadingCard(top, left);
 
         const action = message.action === 'triggerImageCheck' ? 'checkFact' : 'checkVideoFact';
         const payload = message.action === 'triggerImageCheck' 

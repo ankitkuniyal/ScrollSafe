@@ -36,6 +36,7 @@ export default function Analyze({ isDark }) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [videoBlob, setVideoBlob] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const resultRef = useRef(null);
@@ -79,6 +80,11 @@ export default function Analyze({ isDark }) {
       const formData = new FormData();
       formData.append('video', videoBlob, 'video_upload.mp4');
       options.body = formData;
+    } else if (mode === 'image' && imageSubMode === 'upload') {
+      url = 'http://localhost:3000/api/fact-check';
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      options.body = formData;
     } else if (mode === 'video' && videoSubMode === 'url') {
       url = 'http://localhost:3000/api/fact-check/video';
       options.headers = { 'Content-Type': 'application/json' };
@@ -86,7 +92,7 @@ export default function Analyze({ isDark }) {
     } else {
       const payload = {};
       if (mode === 'text') payload.claim = content.trim();
-      if (mode === 'image') payload.imageUrl = content.trim();
+      if (mode === 'image' && imageSubMode === 'url') payload.imageUrl = content.trim();
       options.headers = { 'Content-Type': 'application/json' };
       options.body = JSON.stringify(payload);
     }
@@ -108,6 +114,7 @@ export default function Analyze({ isDark }) {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);

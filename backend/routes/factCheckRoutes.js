@@ -10,7 +10,7 @@ const upload = multer({
     limits: { fileSize: 30 * 1024 * 1024 } // 30MB Limit for stability
 });
 
-router.post('/', translateClaimMiddleware, processFactCheck);
+router.post('/', upload.single('image'), translateClaimMiddleware, processFactCheck);
 router.post('/audio', upload.single('audio'), processAudioFactCheck, translateClaimMiddleware, processFactCheck);
 router.post('/video', upload.single('video'), processVideoFactCheck, translateClaimMiddleware, processFactCheck);
 

@@ -50,23 +50,26 @@ export const checkAiReadiness = () => {
     }
 };
 
-export const evaluateClaim = async (prompt, imageUrl = null) => {
+export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = null) => {
     checkAiReadiness();
     
     try {
         let contents = [];
+        let finalBase64 = base64ImageInput;
 
-        // If an image URL is provided, fetch and add as multimodal part
-        if (imageUrl) {
-            const base64Image = await fetchImageAsBase64(imageUrl);
-            if (base64Image) {
-                contents.push({
-                    inlineData: {
-                        mimeType: "image/jpeg", // Standardizing on jpeg for vision
-                        data: base64Image
-                    }
-                });
-            }
+        // If no direct base64 provided but we have a URL, fetch it
+        if (!finalBase64 && imageUrl) {
+            finalBase64 = await fetchImageAsBase64(imageUrl);
+        }
+
+        // Add multimodal image part if we have base64 data
+        if (finalBase64) {
+            contents.push({
+                inlineData: {
+                    mimeType: "image/jpeg", 
+                    data: finalBase64
+                }
+            });
         }
 
         // Add text prompt
@@ -74,7 +77,7 @@ export const evaluateClaim = async (prompt, imageUrl = null) => {
 
         console.log("---------------- GEMINI PROMPT ----------------");
         console.log(prompt); 
-        if (imageUrl) console.log(`[Vision Enabled with Image: ${imageUrl.substring(0, 50)}...]`);
+        if (imageUrl || base64ImageInput) console.log(`[Vision Enabled with ${imageUrl ? 'URL' : 'Local Upload'}]`);
         console.log("-----------------------------------------------");
 
         // Build config conditionally
@@ -187,12 +190,15 @@ const fetchVideoAsBase64 = async (videoUrl) => {
  * Multi-modal Video Analysis
  * Supports both local Base64 (inlineData) and YouTube/Public URLs (fileData)
  */
-export const analyzeVideo = async ({ base64Video, videoUrl, mimeType }) => {
+export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoContext }) => {
     checkAiReadiness();
     
     try {
         const prompt = `
             Analyze this video content for fact-checking purposes.
+            
+            ${videoContext ? `CONTEXTUAL CLUE: The page hosting this video has the following title/text: "${videoContext}". Use this to help identify the subject even if the visual quality is low.` : ''}
+
             Requirements:
             1. Provide a concise summary of the spoken dialogue (avoiding word-for-word transcripts if long).
             2. Provide a concise summary of key visual events (actions, objects, text on screen).
@@ -208,24 +214,25 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType }) => {
             const isYouTube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
             
             if (isYouTube) {
-                console.log(`[aiModel] Analyzing YouTube Video via Native API: ${videoUrl}`);
-                contents.push({
-                    fileData: {
-                        fileUri: videoUrl,
-                        mimeType: mimeType || 'video/mp4'
-                    }
-                });
+                console.log(`[aiModel] YouTube Link detected. Native Gemini video processing for external YT links is restricted.`);
+                console.log(`[aiModel] Falling back to text-based context analysis for URL: ${videoUrl}`);
+                // Instead of fileUri (which causes 403), we provide the URL and metadata context to the prompt
+                contents.push({ text: `Analyze the claim presented in this YouTube video: ${videoUrl}\n\nNote: Visual stream is restricted. Use the URL and surrounding information for verification.` });
             } else {
-                console.log(`[aiModel] Non-YouTube URL detected (X/Instagram/Direct). Attempting fetch...`);
+                console.log(`[aiModel] Direct Video URL detected. Attempting download...`);
                 const base64Data = await fetchVideoAsBase64(videoUrl);
-                if (!base64Data) throw new Error("Could not download video from the provided link. Ensure it is a direct video source.");
                 
-                contents.push({
-                    inlineData: {
-                        mimeType: mimeType || 'video/mp4',
-                        data: base64Data
-                    }
-                });
+                if (base64Data) {
+                    contents.push({
+                        inlineData: {
+                            mimeType: mimeType || 'video/mp4',
+                            data: base64Data
+                        }
+                    });
+                } else {
+                    console.warn("[aiModel] Could not download video. Proceeding with URL context only.");
+                    contents.push({ text: `Verify claim for video at: ${videoUrl}` });
+                }
             }
         } else if (base64Video) {
             console.log(`[aiModel] Analyzing Video from Base64 Data (size: ${Math.round(base64Video.length / 1024)} KB)`);

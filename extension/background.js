@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; 
     }
     if (request.action === 'checkVideoFact') {
-        handleCheckVideo(request.videoUrl)
+        handleCheckVideo(request.videoUrl, request.context)
             .then(sendResponse)
             .catch(err => sendResponse({ error: err.message }));
         return true;
@@ -91,11 +91,15 @@ async function handleCheckFact(claim, imageUrl, retries = 2) {
 
         if (!response.ok) {
             const errorText = await response.text();
+            if (response.status === 429) {
+                return { error: 'ScrollSafe: Analysis rate limit reached. Please wait a moment and try again.' };
+            }
             throw new Error(`Server returned ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json();
         
+        console.log(`[Extension] Fact Check Success for: ${claim?.substring(0, 30)}...`);
         cache.set(cacheKey, data);
         return { data };
 
@@ -108,28 +112,32 @@ async function handleCheckFact(claim, imageUrl, retries = 2) {
     }
 }
 
-async function handleCheckVideo(videoUrl, retries = 1) {
-    const cacheKey = videoUrl;
+async function handleCheckVideo(videoUrl, context = "", retries = 1) {
+    const cacheKey = videoUrl + (context || "");
     if (cache.has(cacheKey)) {
         return { data: cache.get(cacheKey) };
     }
 
     try {
-        console.log(`[Extension] Analyzing Video URL: ${videoUrl}`);
+        console.log(`[Extension] Analyzing Video URL: ${videoUrl} | Context: ${context}`);
         const response = await fetch(API_VIDEO_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ videoUrl })
+            body: JSON.stringify({ videoUrl, videoContext: context })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
+            if (response.status === 429) {
+                return { error: 'ScrollSafe: Analysis quota exceeded. Please wait a moment.' };
+            }
             throw new Error(`Server returned ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
+        console.log(`[Extension] Video analysis complete.`);
         cache.set(cacheKey, data);
         return { data };
 

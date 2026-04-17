@@ -21,14 +21,16 @@
 #scrollsafe-card {
   position: absolute;
   z-index: 2147483647;
-  background: white;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
   color: #1f2937;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
   width: 380px;
-  font-family: system-ui, -apple-system, sans-serif;
-  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  animation: fadeInScrollSafe 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15), 0 8px 15px -6px rgba(0, 0, 0, 0.1);
+  animation: fadeInScrollSafe 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -125,14 +127,33 @@
 #scrollsafe-loader, #scrollsafe-error {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: 500;
-  color: #4b5563;
-  padding: 16px;
+  gap: 12px;
+  font-weight: 600;
+  color: #374151;
+  padding: 24px;
+  position: relative;
+}
+
+#scrollsafe-loader::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
+  background-size: 200% 100%;
+  width: 100%;
+  animation: loadingBarPulse 2s linear infinite;
+}
+
+@keyframes loadingBarPulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 #scrollsafe-loader svg {
-  animation: spinScrollSafe 1s linear infinite;
+  animation: spinScrollSafe 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  color: #3b82f6;
 }
 
 @keyframes spinScrollSafe {
