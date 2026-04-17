@@ -23,7 +23,7 @@ import {
 export default function Analyze({ isDark }) {
   const [mode, setMode] = useState('text');
   const [imageSubMode, setImageSubMode] = useState('url');
-  const [audioSubMode, setAudioSubMode] = useState('record');
+  const [audioSubMode, setAudioSubMode] = useState('upload');
   const [videoSubMode, setVideoSubMode] = useState('url');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -184,21 +184,19 @@ export default function Analyze({ isDark }) {
 
   const getVerdictStyles = (verdict) => {
     switch (verdict?.toLowerCase()) {
-      case 'true':    return 'text-green-500 bg-green-500/10 border-green-500/20';
-      case 'false':   return 'text-red-500 bg-red-500/10 border-red-500/20';
-      case 'partial': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
-      case 'context': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-      default:        return 'text-neutral-500 bg-neutral-500/10 border-neutral-500/20';
+      case 'true':      return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case 'false':     return 'text-red-500 bg-red-500/10 border-red-500/20';
+      case 'uncertain': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+      default:          return 'text-neutral-500 bg-neutral-500/10 border-neutral-500/20';
     }
   };
 
   const getVerdictIcon = (verdict) => {
     switch (verdict?.toLowerCase()) {
-      case 'true':    return <CheckCircle2 size={24} className="text-green-500" />;
-      case 'false':   return <XCircle size={24} className="text-red-500" />;
-      case 'partial': return <AlertTriangle size={24} className="text-yellow-500" />;
-      case 'context': return <Info size={24} className="text-blue-500" />;
-      default:        return <ShieldCheck size={24} className="text-neutral-500" />;
+      case 'true':      return <CheckCircle2 size={24} className="text-green-500" />;
+      case 'false':     return <XCircle size={24} className="text-red-500" />;
+      case 'uncertain': return <AlertTriangle size={24} className="text-yellow-500" />;
+      default:          return <ShieldCheck size={24} className="text-neutral-500" />;
     }
   };
 
@@ -312,13 +310,13 @@ export default function Analyze({ isDark }) {
             {mode === 'audio' && (
               <div className="flex flex-col gap-4">
                 <div className="flex gap-4 justify-center">
-                  <button type="button" onClick={() => { setAudioSubMode('record'); setError(null); }}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${audioSubMode === 'record' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-surfaceBorder/20'}`}>
-                    <Mic size={12} /> Record
-                  </button>
                   <button type="button" onClick={() => { setAudioSubMode('upload'); setError(null); }}
                     className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${audioSubMode === 'upload' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-surfaceBorder/20'}`}>
                     <Upload size={12} /> Upload
+                  </button>
+                  <button type="button" onClick={() => { setAudioSubMode('record'); setError(null); }}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${audioSubMode === 'record' ? 'bg-accent/20 text-accent border border-accent/30' : 'text-muted hover:bg-surfaceBorder/20'}`}>
+                    <Mic size={12} /> Record
                   </button>
                 </div>
                 {audioSubMode === 'record' ? (
@@ -422,7 +420,7 @@ export default function Analyze({ isDark }) {
                 <div className="flex items-center gap-3">
                   {getVerdictIcon(result.verdict)}
                   <span className="text-base md:text-lg font-bold tracking-tight uppercase">
-                    {result.verdict === 'true' ? 'Verified True' : result.verdict === 'false' ? 'False Claim Detected' : result.verdict === 'partial' ? 'Partially True' : result.verdict === 'context' ? 'Context Needed' : 'Uncertain Verdict'}
+                    {result.verdict?.toLowerCase() || 'uncertain'}
                   </span>
                 </div>
                 {result.confidence !== undefined && (
