@@ -8,7 +8,7 @@ const client = new GoogleGenAI({
 });
 
 // Current model configuration
-const MODEL_NAME = "gemini-3-flash-preview";
+const MODEL_NAME = "gemini-3.1-flash-lite-preview";
 
 // JSON Schema for structured fact-checking output
 const responseSchema = {
