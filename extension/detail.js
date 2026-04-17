@@ -12,6 +12,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         renderDashboard(data);
+
+        // Setup PDF Download Button
+        const downloadBtn = document.getElementById('download-pdf-btn');
+        if (downloadBtn) {
+            downloadBtn.style.display = 'flex';
+            downloadBtn.addEventListener('click', () => {
+                const element = document.getElementById('report-content');
+                
+                // Style element briefly for PDF rendering
+                const opt = {
+                    margin:       10,
+                    filename:     'ScrollSafe_Intelligence_Report.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                // Change button text to indicate loading
+                const originalText = downloadBtn.innerHTML;
+                downloadBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...';
+                downloadBtn.style.opacity = '0.7';
+                downloadBtn.disabled = true;
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    downloadBtn.innerHTML = originalText;
+                    downloadBtn.style.opacity = '1';
+                    downloadBtn.disabled = false;
+                });
+            });
+        }
     });
 });
 
