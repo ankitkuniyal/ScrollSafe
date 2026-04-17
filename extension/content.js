@@ -52,7 +52,7 @@ document.addEventListener('mouseup', (e) => {
             if (text.length > 20) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
-                
+
                 const btn = document.createElement('button');
                 btn.id = 'scrollsafe-btn';
                 btn.innerText = 'Check with ScrollSafe';
@@ -63,7 +63,7 @@ document.addEventListener('mouseup', (e) => {
                 btn.addEventListener('mousedown', async (ev) => {
                     ev.preventDefault(); // maintain selection highlighting
                     ev.stopPropagation();
-                    
+
                     const processed = preprocessText(text);
                     if (currentBtn) currentBtn.remove();
                     currentBtn = null;
@@ -106,12 +106,12 @@ function createBaseCard(top, left) {
     card.id = 'scrollsafe-card';
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-    
+
     // Attempt graceful placement offscreen collision detection
     if (left + 320 > window.innerWidth) {
         card.style.left = `${window.innerWidth - 340}px`;
     }
-    
+
     return card;
 }
 
@@ -132,10 +132,10 @@ function showLoadingCard(top, left, message = "Analyzing with ScrollSafe...") {
 function showResultCard(data, top, left) {
     const card = createBaseCard(top, left);
     const verdict = data.verdict?.toLowerCase() || 'uncertain';
-    
+
     let iconSvg = '';
     let headerLabel = '';
-    
+
     if (verdict === 'false') {
         iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
         headerLabel = 'FALSE CLAIM DETECTED';
@@ -166,7 +166,7 @@ function showResultCard(data, top, left) {
             <button class="scrollsafe-read-more detail-btn">Read Full Report</button>
         </div>
     `;
-    
+
     card.querySelector('.close-btn').addEventListener('click', () => {
         card.remove();
         currentCard = null;
@@ -194,7 +194,7 @@ function showErrorCard(errorMsg, top, left) {
             ${errorMsg}
         </div>
     `;
-    
+
     card.querySelector('.close-btn').addEventListener('click', () => {
         card.remove();
         currentCard = null;
@@ -209,7 +209,7 @@ function showErrorCard(errorMsg, top, left) {
  */
 function injectVideoButtons() {
     const isYouTube = window.location.hostname.includes('youtube.com');
-    
+
     if (isYouTube) {
         // 1. YouTube Regular (Action Bar integration)
         // Target modern ytd-watch-metadata buttons or fallback to legacy ytd-video-primary-info-renderer
@@ -218,7 +218,7 @@ function injectVideoButtons() {
             '#top-level-buttons-computed.ytd-menu-renderer',
             'ytd-video-primary-info-renderer #top-level-buttons-computed'
         ];
-        
+
         let barFound = false;
         actionBarSelectors.forEach(selector => {
             const bars = document.querySelectorAll(`${selector}:not(.scrollsafe-injected)`);
@@ -250,7 +250,7 @@ function injectVideoButtons() {
 function addYTActionBarBtn(container, getUrlFunc) {
     const btnViewModel = document.createElement('button-view-model');
     btnViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer scrollsafe-yt-action-item';
-    
+
     btnViewModel.innerHTML = `
         <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-only" aria-label="Analyze">
             <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
@@ -268,33 +268,33 @@ function addYTActionBarBtn(container, getUrlFunc) {
     btnViewModel.querySelector('button').addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
-        
+
         btnViewModel.classList.add('loading');
         const videoUrl = getUrlFunc();
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
-        
+
         // Extract Title relative to the action bar to avoid mismatch
         const watchMetadata = btnViewModel.closest('ytd-watch-metadata, #watch-header, ytd-video-primary-info-renderer');
         const videoTitle = watchMetadata?.querySelector('h1')?.innerText || document.title;
-        
+
         removeUI();
         showLoadingCard(top, left, "Analyzing Video Content...");
         showGlobalLoader();
-        
+
         try {
             const response = await chrome.runtime.sendMessage({
                 action: 'checkVideoFact',
                 videoUrl: videoUrl,
                 context: videoTitle
             });
-            
+
             isAnalyzingVideo = false;
             btnViewModel.classList.remove('loading');
-            
+
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
@@ -317,46 +317,48 @@ function addShortsTrayBtn(tray, getUrlFunc) {
     label.innerHTML = `
         <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-l yt-spec-button-shape-next--icon-button">
             <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
-                <svg id="scrollsafe-shorts-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 24px; height: 24px;">
+                <svg id="scrollsafe-shorts-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="width: 24px; height: 24px;">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
             </div>
         </button>
+        <span class="scrollsafe-shorts-label" style="font-size: 12px !important; font-weight: 600 !important; color: white !important; margin-top: 8px !important;">Analyzing...</span>
     `;
 
     label.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
-        
+
         label.classList.add('loading');
-        
+
         // Extract ID and Title relative to the current reel container
         const reel = label.closest('ytd-reel-video-renderer, reel-video-display-view-model-v2');
         const videoId = reel?.getAttribute('video-id');
         const videoUrl = videoId ? `https://www.youtube.com/shorts/${videoId}` : window.location.href;
-        
-        const top = window.scrollY + 100;
-        const left = window.scrollX + (window.innerWidth / 2) - 190;
-        
+
+        const rect = label.getBoundingClientRect();
+        const top = Math.max(50, rect.top + window.scrollY - 350);
+        const left = rect.right + window.scrollX + 40;
+
         const shortsTitle = reel?.querySelector('h2')?.innerText || reel?.querySelector('.title')?.innerText || "YouTube Short";
-        
+
         removeUI();
-        showLoadingCard(top, left, "Analyzing Shorts Video...");
+        showLoadingCard(top, left, "Analyzing with ScrollSafe...");
         showGlobalLoader();
-        
+
         try {
             const response = await chrome.runtime.sendMessage({
                 action: 'checkVideoFact',
                 videoUrl: videoUrl,
                 context: shortsTitle
             });
-            
+
             isAnalyzingVideo = false;
             label.classList.remove('loading');
-            
+
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
@@ -376,17 +378,17 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
     const btn = document.createElement('button');
     btn.className = `scrollsafe-video-btn ${isX ? 'scrollsafe-btn-x' : ''}`;
     const strokeColor = isX ? 'white' : '#3b82f6';
-    
+
     btn.innerHTML = `
         <svg id="scrollsafe-float-icon" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="3">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
     `;
-    
+
     btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         if (isAnalyzingVideo) return;
         isAnalyzingVideo = true;
 
@@ -394,27 +396,27 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
         const videoUrl = getUrlFunc();
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
-        
+
         // Extract Tweet text from X
         let tweetText = "";
         try {
             const tweetContainer = btn.closest('article') || btn.closest('div[data-testid="cellInnerDiv"]');
             tweetText = tweetContainer?.querySelector('div[data-testid="tweetText"]')?.innerText || "";
-        } catch (e) {}
-        
+        } catch (e) { }
+
         showLoadingCard(top, left, "Analyzing Video with ScrollSafe...");
         showGlobalLoader();
-        
+
         try {
             const response = await chrome.runtime.sendMessage({
                 action: 'checkVideoFact',
                 videoUrl: videoUrl,
                 context: tweetText
             });
-            
+
             isAnalyzingVideo = false;
             btn.classList.remove('loading');
-            
+
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {
@@ -440,15 +442,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'triggerImageCheck' || message.action === 'triggerVideoCheck') {
         const top = window.scrollY + Math.max(100, window.innerHeight / 2 - 100);
         const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
-        
+
         removeUI();
         const loadingMsg = message.action === 'triggerImageCheck' ? "Analyzing Image..." : "Analyzing Video Content...";
         showLoadingCard(top, left, loadingMsg);
         showGlobalLoader();
 
         const action = message.action === 'triggerImageCheck' ? 'checkFact' : 'checkVideoFact';
-        const payload = message.action === 'triggerImageCheck' 
-            ? { action, imageUrl: message.imageUrl } 
+        const payload = message.action === 'triggerImageCheck'
+            ? { action, imageUrl: message.imageUrl }
             : { action, videoUrl: message.videoUrl };
 
         chrome.runtime.sendMessage(payload).then(response => {

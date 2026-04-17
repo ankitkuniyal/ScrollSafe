@@ -238,23 +238,21 @@
 }
 
 .scrollsafe-shorts-tray-item span {
-  color: #3b82f6 !important;
+  color: white !important;
   font-size: 10px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   margin-top: 6px !important;
-  text-shadow: none !important;
-  font-family: "Roboto", sans-serif !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+  font-family: inherit !important;
+  display: none !important;
 }
 
-/* Loading State Animations for Video Analysis */
-.loading #scrollsafe-shorts-icon,
-.loading #scrollsafe-float-icon {
-  animation: spinScrollSafe 1s linear infinite !important;
+.scrollsafe-shorts-tray-item.loading span {
+  display: block !important;
 }
 
 .loading {
   pointer-events: none !important;
-  opacity: 0.7;
 }
 
 .scrollsafe-video-btn svg {
