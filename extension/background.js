@@ -144,7 +144,7 @@ async function handleCheckVideo(videoUrl, context = "", retries = 1) {
     } catch (error) {
         if (retries > 0) {
             await new Promise(r => setTimeout(r, 2000));
-            return handleCheckVideo(videoUrl, retries - 1);
+            return handleCheckVideo(videoUrl, context, retries - 1);
         }
         return { error: error.message || 'Failed to connect to video fact-checking API.' };
     }

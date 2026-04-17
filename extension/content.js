@@ -83,7 +83,7 @@ document.addEventListener('mouseup', (e) => {
                             showResultCard(response.data, rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
                         }
                     } catch (error) {
-                        showErrorCard('Extension error: Could not contact background script.', rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                        showErrorCard(`Extension error: ${error.message || 'Could not contact background script.'}`, rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
                     }
                 });
 
@@ -303,7 +303,7 @@ function addYTActionBarBtn(container, getUrlFunc) {
         } catch (err) {
             isAnalyzingVideo = false;
             btnViewModel.classList.remove('loading');
-            showErrorCard('Extension error: Analysis failed.', top, left);
+            showErrorCard(`Extension error: ${err.message || 'Analysis failed.'}`, top, left);
         }
     });
 
@@ -332,12 +332,15 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         isAnalyzingVideo = true;
         
         label.classList.add('loading');
-        const videoUrl = getUrlFunc();
+        
+        // Extract ID and Title relative to the current reel container
+        const reel = label.closest('ytd-reel-video-renderer, reel-video-display-view-model-v2');
+        const videoId = reel?.getAttribute('video-id');
+        const videoUrl = videoId ? `https://www.youtube.com/shorts/${videoId}` : window.location.href;
+        
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        // Extract Title relative to the current reel container
-        const reel = label.closest('ytd-reel-video-renderer, reel-video-display-view-model-v2');
         const shortsTitle = reel?.querySelector('h2')?.innerText || reel?.querySelector('.title')?.innerText || "YouTube Short";
         
         removeUI();
@@ -362,7 +365,7 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         } catch (err) {
             isAnalyzingVideo = false;
             label.classList.remove('loading');
-            showErrorCard('Extension error: Analysis failed.', top, left);
+            showErrorCard(`Extension error: ${err.message || 'Analysis failed.'}`, top, left);
         }
     });
 
@@ -420,7 +423,7 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
         } catch (err) {
             isAnalyzingVideo = false;
             btn.classList.remove('loading');
-            showErrorCard('Extension error.', top, left);
+            showErrorCard(`Extension error: ${err.message || 'Operation failed.'}`, top, left);
         }
     });
 
@@ -455,7 +458,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 showResultCard(response.data, top, left);
             }
         }).catch(err => {
-            showErrorCard('Extension error: Could not contact background script.', top, left);
+            showErrorCard(`Extension error: ${err.message || 'Could not contact background script.'}`, top, left);
         });
     }
 });
