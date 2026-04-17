@@ -31,8 +31,8 @@ const responseSchema = {
       description: "Must be TRUE, FALSE, MISLEADING, or UNCERTAIN",
     },
     confidence: {
-      type: SchemaType.STRING,
-      description: "Must be HIGH, MEDIUM, or LOW",
+      type: SchemaType.INTEGER,
+      description: "A numerical percentage from 0 to 100 representing how confident you are in your verdict.",
     },
     explanation: {
       type: SchemaType.STRING,
@@ -44,7 +44,7 @@ const responseSchema = {
 
 // Hook up the requested hackathon model: gemini-2.5-flash-lite
 const aiModel = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-3.1-flash-lite-preview",
     generationConfig: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
@@ -126,14 +126,23 @@ app.post('/api/fact-check', async (req, res) => {
             with_payload: true, 
         });
 
-        // Structure the Qdrant Context Array for LLM ingestion
+        // Structure the Qdrant Context Array for LLM ingestion AND emit to Frontend Dashboard
         let contextBlock = "EVIDENCE FROM QDRANT (DATABASE):\n\n";
         let topScore = 0;
+        let sourceQdrant = []; // Accumulator for the frontend
+
         if (qdrantResults.length === 0) {
              contextBlock += "[No similar claims found in database]\n";
         } else {
              topScore = qdrantResults[0].score;
              qdrantResults.forEach((match, index) => {
+                 sourceQdrant.push({
+                     score: match.score,
+                     label: match.payload.label,
+                     claim: match.payload.claim,
+                     fact_checkers: match.payload.fact_checkers,
+                     explanation: match.payload.explanation
+                 });
                  contextBlock += `--- Match ${index + 1} (Similarity: ${(match.score * 100).toFixed(1)}%) ---\n`;
                  contextBlock += `Label (Truth): ${match.payload.label}\n`;
                  contextBlock += `Claim: ${match.payload.claim}\n`;
@@ -144,6 +153,8 @@ app.post('/api/fact-check', async (req, res) => {
 
         // STEP 2B: LIVE REAL-WORLD NEWS (If memory is not confident, check real-world live events)
         let liveNewsBlock = "RECENT NEWS REPORTS (LIVE WEB WEB-SEARCH):\n\n";
+        let sourceNews = []; // Accumulator for the frontend
+        
         if (topScore < 0.85) {
              const articles = await fetchLiveNews(claim);
              if (articles && articles.length > 0) {
@@ -156,6 +167,13 @@ app.post('/api/fact-check', async (req, res) => {
                  
                  const bestArticles = flatNews.slice(0, 5); // Grab top 5 freshest headlines
                  bestArticles.forEach((article, index) => {
+                     sourceNews.push({
+                         title: article.title,
+                         source: article.source?.name || 'News Source',
+                         date: article.date || 'Recent',
+                         snippet: article.snippet || null,
+                         link: article.link || '#'
+                     });
                      liveNewsBlock += `--- Article ${index + 1} from ${article.source?.name || 'News Source'} ---\n`;
                      liveNewsBlock += `Title: ${article.title}\n`;
                      liveNewsBlock += `Date: ${article.date || 'Recent'}\n`;
@@ -205,10 +223,15 @@ ${liveNewsBlock}
 
         // STEP 5: Emit the dynamically reasoned response identically down to the Extension
         res.json({
+            claim: claim,
             verdict: finalDecisionJson.verdict.toUpperCase(),
-            confidence: finalDecisionJson.confidence.charAt(0).toUpperCase() + finalDecisionJson.confidence.slice(1).toLowerCase(),
+            confidence: finalDecisionJson.confidence,
             explanation: finalDecisionJson.explanation,
-            score: topScore.toFixed(4)
+            score: topScore.toFixed(4),
+            sources: {
+                qdrant: sourceQdrant,
+                news: sourceNews
+            }
         });
 
     } catch (error) {
