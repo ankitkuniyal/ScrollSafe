@@ -25,61 +25,110 @@
   color: #1f2937;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 16px;
-  width: 320px;
+  width: 380px;
   font-family: system-ui, -apple-system, sans-serif;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   animation: fadeInScrollSafe 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-#scrollsafe-card h3 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
+.scrollsafe-header {
+  padding: 14px 18px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.scrollsafe-header-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scrollsafe-body {
+  padding: 20px 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+.scrollsafe-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.scrollsafe-confidence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.scrollsafe-confidence svg {
+  color: #10b981;
+}
+
+.scrollsafe-read-more {
+  color: #2563eb;
+  background: #eff6ff;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.scrollsafe-read-more:hover {
+  background: #dbeafe;
 }
 
 #scrollsafe-card .close-btn {
   background: none;
   border: none;
-  color: #9ca3af;
+  color: inherit;
+  opacity: 0.5;
   cursor: pointer;
-  padding: 4px;
-  font-size: 18px;
+  padding: 0px;
+  font-size: 20px;
   line-height: 1;
-  transition: color 0.1s;
+  transition: opacity 0.1s;
 }
 
 #scrollsafe-card .close-btn:hover {
-  color: #4b5563;
+  opacity: 1;
 }
 
-#scrollsafe-card p {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #4b5563;
-}
-
-#scrollsafe-card .verdict-true { color: #16a34a; font-weight: 700; }
-#scrollsafe-card .verdict-false { color: #dc2626; font-weight: 700; }
-#scrollsafe-card .verdict-misleading { color: #ea580c; font-weight: 700; }
-#scrollsafe-card .verdict-uncertain { color: #6b7280; font-weight: 700; }
+.header-false { background: #fee2e2; color: #dc2626; }
+.header-true { background: #dcfce3; color: #16a34a; }
+.header-misleading { background: #ffedd5; color: #ea580c; }
+.header-uncertain { background: #f3f4f6; color: #4b5563; }
 
 @keyframes fadeInScrollSafe {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-#scrollsafe-loader {
+#scrollsafe-loader, #scrollsafe-error {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 500;
   color: #4b5563;
+  padding: 16px;
 }
 
 #scrollsafe-loader svg {

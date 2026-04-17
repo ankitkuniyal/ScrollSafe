@@ -8,6 +8,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         handleCheckFact(request.claim).then(sendResponse);
         return true; 
     }
+    if (request.action === 'openDetailReport') {
+        chrome.storage.local.set({ scrollSafeReport: request.data }, () => {
+            chrome.tabs.create({ url: chrome.runtime.getURL("detail.html") });
+        });
+        sendResponse({ success: true });
+        return true;
+    }
 });
 
 async function handleCheckFact(claim, retries = 2) {
