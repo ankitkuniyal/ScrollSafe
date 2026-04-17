@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShieldCheck, ChevronRight, Menu, X, Sun, Moon } from 'lucide-react';
+import { ShieldCheck, ChevronRight, Menu, X, Sun, Moon, PlayCircle } from 'lucide-react';
 import Home from './pages/Home';
 import Analyze from './pages/Analyze';
 
@@ -65,16 +65,22 @@ function App() {
             <span className="font-bold text-2xl tracking-tight text-primary">ScrollSafe</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-10">
+          <div className="hidden md:flex items-center gap-8 lg:gap-10">
             {location.pathname === '/' ? (
               <>
                 <a href="#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</a>
                 <a href="#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</a>
+                <a href="#demo" className="text-sm font-medium px-4 py-1.5 text-muted rounded hover:text-primary transition-all hover:-translate-y-0.5 flex items-center gap-1.5">
+                  <PlayCircle size={14} /> Demo
+                </a>
               </>
             ) : (
               <>
                 <Link to="/#features" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">Features</Link>
                 <Link to="/#how-it-works" className="text-sm font-medium text-muted hover:text-primary transition-all hover:-translate-y-0.5">How it Works</Link>
+                <Link to="/#demo" className="text-sm font-medium px-4 py-1.5 text-muted rounded hover:text-primary transition-all hover:-translate-y-0.5 flex items-center gap-1.5">
+                  <PlayCircle size={14} /> Demo
+                </Link>
               </>
             )}
             <Link to="/analyze" className={`text-sm font-medium transition-all hover:-translate-y-0.5 ${location.pathname === '/analyze' ? 'text-primary' : 'text-muted hover:text-primary'}`}>
