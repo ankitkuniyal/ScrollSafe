@@ -269,7 +269,7 @@ export default function Analyze({ isDark }) {
               <div className="w-3 h-3 rounded-full bg-green-400 opacity-80"></div>
             </div>
             <div className="text-[10px] font-mono text-muted/80 flex items-center gap-2 uppercase tracking-widest">
-              <ShieldCheck size={12} className="text-accent" /> ScrollSafe Analyzer
+              <img src="/logo.svg" className="w-3 h-auto" alt="logo" /> ScrollSafe Analyzer
             </div>
             <div className="w-12"></div>
           </div>

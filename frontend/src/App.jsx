@@ -59,9 +59,7 @@ function App() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? 'bg-navBg backdrop-blur-xl border-b border-surfaceBorder py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-blue-600 flex items-center justify-center shadow-md shadow-accent/20 transition-transform group-hover:scale-105">
-              <ShieldCheck size={20} className="text-white" />
-            </div>
+            <img src="/logo.svg" className="w-9 h-auto transition-transform group-hover:scale-105" alt="logo" />
             <span className="font-bold text-2xl tracking-tight text-primary">ScrollSafe</span>
           </Link>
 
@@ -144,7 +142,7 @@ function App() {
 
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-6">
-                <ShieldCheck size={24} className="text-accent" />
+                <img src="/logo.svg" className="w-6 h-auto" alt="logo" />
                 <span className="font-bold text-xl text-primary">ScrollSafe</span>
               </div>
               <p className="text-sm text-muted leading-relaxed">
