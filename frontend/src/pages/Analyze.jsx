@@ -249,7 +249,20 @@ export default function Analyze({ isDark }) {
 
         {/* Form Card: App Window Style */}
         <motion.div className="w-full max-w-5xl border border-surfaceBorder rounded-3xl bg-surface backdrop-blur-3xl shadow-xl overflow-hidden ring-1 ring-surfaceBorder/50 mb-6 transition-colors">
-          <div className="bg-surfaceBorder/20 border-b border-surfaceBorder px-5 py-3 flex items-center justify-between">
+          <div className="bg-surfaceBorder/20 border-b border-surfaceBorder px-5 py-3 flex items-center justify-between relative">
+            {/* Top Analysis Progress Bar */}
+            <AnimatePresence>
+              {loading && (
+                <motion.div 
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: '100%', opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 2, ease: "linear", repeat: Infinity }}
+                  className="absolute top-0 left-0 h-[3px] bg-gradient-to-r from-accent via-blue-500 to-accent bg-[length:200%_100%] z-50 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                />
+              )}
+            </AnimatePresence>
+            
             <div className="flex gap-2">
               <div className="w-3 h-3 rounded-full bg-red-400 opacity-80"></div>
               <div className="w-3 h-3 rounded-full bg-amber-400 opacity-80"></div>

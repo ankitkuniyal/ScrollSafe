@@ -203,7 +203,13 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
             1. Provide a concise summary of the spoken dialogue (avoiding word-for-word transcripts if long).
             2. Provide a concise summary of key visual events (actions, objects, text on screen).
             3. Create a "combined_context" which is a single, clear paragraph summarizing the core claim or event depicted in the video.
-            4. Generate a concise "primary_query" (5-10 words) highlighting the specific factual claim (e.g., "Women's Reservation Bill delimitation gerrymandering claims") for news search.
+            4. Generate a concise "primary_query" (5-10 words) highlighting the specific factual claim for news search.
+            
+            STRICT ANTI-HALLUCINATION RULES:
+            - You are analyzing a video via a URL (${videoUrl}). If you cannot access the video stream directly, DO NOT GUESS the content.
+            - If the provided CONTEXTUAL CLUE clearly contradicts the identity of the Video URL (e.g., different subject matter), prioritize reporting the discrepancy.
+            - Do NOT invent specific scientific or legal claims if the source is unavailable. If you are uncertain, use the 'combined_context' to express that the video could not be fully resolved visually.
+            
             IMPORTANT: Ensure the response is a valid JSON object. Keep the total output concise to avoid truncation.
         `;
 

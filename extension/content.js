@@ -11,6 +11,19 @@ function removeUI() {
         currentCard.remove();
         currentCard = null;
     }
+    hideGlobalLoader();
+}
+
+function showGlobalLoader() {
+    if (document.getElementById('scrollsafe-top-loader')) return;
+    const loader = document.createElement('div');
+    loader.id = 'scrollsafe-top-loader';
+    document.body.appendChild(loader);
+}
+
+function hideGlobalLoader() {
+    const loader = document.getElementById('scrollsafe-top-loader');
+    if (loader) loader.remove();
 }
 
 function preprocessText(text) {
@@ -55,7 +68,8 @@ document.addEventListener('mouseup', (e) => {
                     if (currentBtn) currentBtn.remove();
                     currentBtn = null;
 
-                    showLoadingCard(rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                    showLoadingCard(rect.bottom + window.scrollY + 8, rect.left + window.scrollX, "Analyzing Claim...");
+                    showGlobalLoader();
 
                     try {
                         const response = await chrome.runtime.sendMessage({
@@ -101,14 +115,14 @@ function createBaseCard(top, left) {
     return card;
 }
 
-function showLoadingCard(top, left) {
+function showLoadingCard(top, left, message = "Analyzing with ScrollSafe...") {
     const card = createBaseCard(top, left);
     card.innerHTML = `
         <div id="scrollsafe-loader">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
             </svg>
-            Analyzing with ScrollSafe...
+            ${message}
         </div>
     `;
     document.body.appendChild(card);
@@ -117,23 +131,27 @@ function showLoadingCard(top, left) {
 
 function showResultCard(data, top, left) {
     const card = createBaseCard(top, left);
-    const verdict = data.verdict || 'uncertain';
-    const vLower = verdict.toLowerCase();
+    const verdict = data.verdict?.toLowerCase() || 'uncertain';
     
     let iconSvg = '';
-    if (vLower === 'false') {
+    let headerLabel = '';
+    
+    if (verdict === 'false') {
         iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
-    } else if (vLower === 'true') {
+        headerLabel = 'FALSE CLAIM DETECTED';
+    } else if (verdict === 'true') {
         iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+        headerLabel = 'VERIFIED TRUE';
     } else {
         iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+        headerLabel = 'UNCERTAIN VERDICT';
     }
 
     card.innerHTML = `
-        <div class="scrollsafe-header header-${vLower}">
+        <div class="scrollsafe-header header-${verdict}">
             <div class="scrollsafe-header-content">
                 ${iconSvg}
-                <span>${verdict.toUpperCase()} CLAIM DETECTED</span>
+                <span>${headerLabel}</span>
             </div>
             <button class="close-btn">&times;</button>
         </div>
@@ -259,11 +277,13 @@ function addYTActionBarBtn(container, getUrlFunc) {
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        // Extract Title from YouTube
-        const videoTitle = document.querySelector('h1.ytd-watch-metadata')?.innerText || document.title;
+        // Extract Title relative to the action bar to avoid mismatch
+        const watchMetadata = btnViewModel.closest('ytd-watch-metadata, #watch-header, ytd-video-primary-info-renderer');
+        const videoTitle = watchMetadata?.querySelector('h1')?.innerText || document.title;
         
         removeUI();
-        showLoadingCard(top, left);
+        showLoadingCard(top, left, "Analyzing Video Content...");
+        showGlobalLoader();
         
         try {
             const response = await chrome.runtime.sendMessage({
@@ -316,11 +336,13 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         const top = window.scrollY + 100;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
         
-        // Extract Title from Shorts
-        const shortsTitle = document.querySelector('reel-player-header-view-model h2')?.innerText || "YouTube Short";
+        // Extract Title relative to the current reel container
+        const reel = label.closest('ytd-reel-video-renderer, reel-video-display-view-model-v2');
+        const shortsTitle = reel?.querySelector('h2')?.innerText || reel?.querySelector('.title')?.innerText || "YouTube Short";
         
         removeUI();
-        showLoadingCard(top, left);
+        showLoadingCard(top, left, "Analyzing Shorts Video...");
+        showGlobalLoader();
         
         try {
             const response = await chrome.runtime.sendMessage({
@@ -377,7 +399,8 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
             tweetText = tweetContainer?.querySelector('div[data-testid="tweetText"]')?.innerText || "";
         } catch (e) {}
         
-        showLoadingCard(top, left);
+        showLoadingCard(top, left, "Analyzing Video with ScrollSafe...");
+        showGlobalLoader();
         
         try {
             const response = await chrome.runtime.sendMessage({
@@ -416,7 +439,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
         
         removeUI();
-        showLoadingCard(top, left);
+        const loadingMsg = message.action === 'triggerImageCheck' ? "Analyzing Image..." : "Analyzing Video Content...";
+        showLoadingCard(top, left, loadingMsg);
+        showGlobalLoader();
 
         const action = message.action === 'triggerImageCheck' ? 'checkFact' : 'checkVideoFact';
         const payload = message.action === 'triggerImageCheck' 
