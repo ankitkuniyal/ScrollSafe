@@ -83,6 +83,7 @@ export const processVideoFactCheck = async (req, res, next) => {
 };
 
 
+
 export const processFactCheck = async (req, res) => {
     try {
         let { claim, imageUrl, linkUrl } = req.body;

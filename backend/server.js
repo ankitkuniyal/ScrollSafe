@@ -2,6 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import dns from 'node:dns';
+
+// Global error handlers to prevent "clean exit" crashes
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
 import factCheckRoutes from './routes/factCheckRoutes.js';
 import { loadEmbeddingModel } from './services/embeddingService.js';
 
