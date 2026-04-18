@@ -1,5 +1,5 @@
-const API_URL = "http://localhost:3000/api/fact-check"; // YOUR_BACKEND_URL
-const API_VIDEO_URL = "http://localhost:3000/api/fact-check/video";
+const API_URL = "https://scroll-safe-9tu9.vercel.app/api/fact-check";
+const API_VIDEO_URL = "https://scroll-safe-9tu9.vercel.app/api/fact-check/video";
 const cache = new Map();
 
 let lastRequestTime = 0;
