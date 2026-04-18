@@ -10,6 +10,27 @@ const client = new GoogleGenAI({
 // Current model configuration
 const MODEL_NAME = "gemini-2.5-flash-lite";
 
+/**
+ * Helper to execute Gemini calls with automatic retry on 429 (Rate Limit) errors.
+ * This helps handle quota issues without failing the entire request.
+ */
+async function executeWithRetry(fn, retries = 3, delay = 2000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            const isQuotaError = error.message.includes("429") || error.message.includes("quota");
+            if (isQuotaError && i < retries - 1) {
+                console.warn(`⚠️ Gemini Rate Limit (429) hit. Retrying in ${delay / 1000}s... (Attempt ${i + 1}/${retries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
 // JSON Schema for structured fact-checking output
 const responseSchema = {
     type: Type.OBJECT,
@@ -98,11 +119,11 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
             };
         }
 
-        const response = await client.models.generateContent({
+        const response = await executeWithRetry(() => client.models.generateContent({
             model: MODEL_NAME,
             contents: [{ parts: parts }],
             config: config
-        });
+        }));
 
         console.log("---------------- GEMINI OUTPUT ----------------");
         console.log(response.text);
@@ -113,7 +134,10 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
 
     } catch (error) {
         console.error("Gemini 3 Error:", error);
-        throw new Error("AI analysis failed with the new GenAI SDK.");
+        if (error.message.includes("429") || error.message.includes("quota")) {
+            console.error("CRITICAL: Gemini API Quota Exceeded. Please check your billing/usage limits.");
+        }
+        throw new Error(`AI analysis failed: ${error.message}`);
     }
 };
 
@@ -147,7 +171,7 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
             },
         ];
 
-        const response = await client.models.generateContent({
+        const response = await executeWithRetry(() => client.models.generateContent({
             model: MODEL_NAME,
             contents: [{ parts: parts }],
             config: {
@@ -163,11 +187,14 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
                     required: ["transcription", "is_authentic", "authenticity_reasoning", "primary_query"]
                 }
             }
-        });
+        }));
 
         return JSON.parse(response.text);
     } catch (error) {
         console.error("Gemini 3 Audio Error:", error);
+        if (error.message.includes("429") || error.message.includes("quota")) {
+            console.error("CRITICAL: Gemini API Quota Exceeded. Please check your billing/usage limits.");
+        }
         // Log more details if available in the error object
         if (error.details) console.error("Error Details:", JSON.stringify(error.details, null, 2));
         throw new Error(`Failed to analyze audio authenticity: ${error.message || 'Unknown AI error'}`);
@@ -261,7 +288,7 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
             throw new Error("Missing video input: Provide base64Video or videoUrl.");
         }
 
-        const response = await client.models.generateContent({
+        const response = await executeWithRetry(() => client.models.generateContent({
             model: MODEL_NAME,
             contents: [{ parts: parts }],
             config: {
@@ -278,7 +305,7 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
                     required: ["summary", "transcription", "visual_summary", "combined_context", "primary_query"]
                 }
             }
-        });
+        }));
 
         console.log(`[aiModel] Received video analysis. Response length: ${response.text.length} chars.`);
         
