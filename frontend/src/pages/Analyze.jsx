@@ -67,26 +67,26 @@ export default function Analyze({ isDark }) {
     setResult(null);
     setError(null);
 
-    let url = 'https://scroll-safe-9tu9.vercel.app/api/fact-check';
+    let url = 'http://localhost:3000/api/fact-check';
     let options = { method: 'POST' };
 
     if (mode === 'audio') {
-      url = 'https://scroll-safe-9tu9.vercel.app/api/fact-check/audio';
+      url = 'http://localhost:3000/api/fact-check/audio';
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       options.body = formData;
     } else if (mode === 'video' && videoSubMode === 'upload') {
-      url = 'https://scroll-safe-9tu9.vercel.app/api/fact-check/video';
+      url = 'http://localhost:3000/api/fact-check/video';
       const formData = new FormData();
       formData.append('video', videoBlob, 'video_upload.mp4');
       options.body = formData;
     } else if (mode === 'image' && imageSubMode === 'upload') {
-      url = 'https://scroll-safe-9tu9.vercel.app/api/fact-check';
+      url = 'http://localhost:3000/api/fact-check';
       const formData = new FormData();
       formData.append('image', imageFile);
       options.body = formData;
     } else if (mode === 'video' && videoSubMode === 'url') {
-      url = 'https://scroll-safe-9tu9.vercel.app/api/fact-check/video';
+      url = 'http://localhost:3000/api/fact-check/video';
       options.headers = { 'Content-Type': 'application/json' };
       options.body = JSON.stringify({ videoUrl: content.trim() });
     } else {
