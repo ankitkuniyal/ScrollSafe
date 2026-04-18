@@ -113,7 +113,12 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
 
     } catch (error) {
         console.error("Gemini 3 Error:", error);
-        throw new Error("AI analysis failed with the new GenAI SDK.");
+        // Fallback for UI if Gemini fails due to network issues
+        return {
+            verdict: "UNCERTAIN",
+            confidence: 0,
+            explanation: "AI analysis is currently unavailable due to network connectivity issues. However, you can review the database and live news matches below for manual verification."
+        };
     }
 };
 

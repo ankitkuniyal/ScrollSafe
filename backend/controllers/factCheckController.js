@@ -136,7 +136,13 @@ export const processFactCheck = async (req, res) => {
         }
 
         // STEP 2: Database Hybrid Memory
-        const qdrantResults = await searchSimilarClaims(queryVector);
+        let qdrantResults = [];
+        try {
+            qdrantResults = await searchSimilarClaims(queryVector);
+        } catch (e) {
+            console.error("Qdrant Search Error:", e.message);
+            // Fall back to empty results if database is unreachable
+        }
 
         let contextBlock = "EVIDENCE FROM QDRANT (DATABASE):\n\n";
         let topScore = 0;

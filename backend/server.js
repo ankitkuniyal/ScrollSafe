@@ -1,8 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import dns from 'node:dns';
 import factCheckRoutes from './routes/factCheckRoutes.js';
 import { loadEmbeddingModel } from './services/embeddingService.js';
+
+// Set DNS to prefer IPv4 (fixes many ConnectTimeoutError issues on Mac/Node)
+dns.setDefaultResultOrder('ipv4first');
 
 // Initialize env vars from .env file
 dotenv.config();
