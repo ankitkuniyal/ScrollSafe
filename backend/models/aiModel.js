@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -8,22 +8,22 @@ const client = new GoogleGenAI({
 });
 
 // Current model configuration
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-2.5-flash-lite";
 
 // JSON Schema for structured fact-checking output
 const responseSchema = {
-    type: "OBJECT",
+    type: Type.OBJECT,
     properties: {
         verdict: {
-            type: "STRING",
+            type: Type.STRING,
             description: "Must be TRUE, FALSE, or UNCERTAIN",
         },
         confidence: {
-            type: "INTEGER",
+            type: Type.INTEGER,
             description: "A numerical percentage from 0 to 100 representing how confident you are in your verdict.",
         },
         explanation: {
-            type: "STRING",
+            type: Type.STRING,
             description: "A nuanced, empathetic explanation. If the provided context identifies a specific source article for an image/link, identify it clearly (e.g., 'This image belongs to a report from...') and then summarize the fact-check (max 3 sentences).",
         },
     },
@@ -54,30 +54,35 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
     checkAiReadiness();
     
     try {
-        let contents = [];
         let finalBase64 = base64ImageInput;
+        let mimeType = "image/jpeg"; // Default
 
         // If no direct base64 provided but we have a URL, fetch it
         if (!finalBase64 && imageUrl) {
             finalBase64 = await fetchImageAsBase64(imageUrl);
+            // Rough detection from URL
+            if (imageUrl.toLowerCase().endsWith(".png")) mimeType = "image/png";
+            else if (imageUrl.toLowerCase().endsWith(".webp")) mimeType = "image/webp";
         }
+
+        const parts = [];
+        
+        // Add text prompt first
+        parts.push({ text: prompt });
 
         // Add multimodal image part if we have base64 data
         if (finalBase64) {
-            contents.push({
+            parts.push({
                 inlineData: {
-                    mimeType: "image/jpeg", 
+                    mimeType: mimeType, 
                     data: finalBase64
                 }
             });
         }
 
-        // Add text prompt
-        contents.push({ text: prompt });
-
         console.log("---------------- GEMINI PROMPT ----------------");
         console.log(prompt); 
-        if (imageUrl || base64ImageInput) console.log(`[Vision Enabled with ${imageUrl ? 'URL' : 'Local Upload'}]`);
+        if (imageUrl || base64ImageInput) console.log(`[Vision Enabled with ${imageUrl ? 'URL' : 'Local Upload'} - ${mimeType}]`);
         console.log("-----------------------------------------------");
 
         // Build config conditionally
@@ -86,8 +91,8 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
             responseSchema: responseSchema,
         };
 
-        // Enable Thinking Mode only for gemini-3-flash-preview
-        if (MODEL_NAME === "gemini-3-flash-preview") {
+        // Enable Thinking Mode for supported models
+        if (MODEL_NAME.includes("thinking") || MODEL_NAME.includes("gemini-3-flash")) {
             config.thinkingConfig = {
                 thinkingLevel: ThinkingLevel.LOW,
             };
@@ -95,7 +100,7 @@ export const evaluateClaim = async (prompt, imageUrl = null, base64ImageInput = 
 
         const response = await client.models.generateContent({
             model: MODEL_NAME,
-            contents: contents,
+            contents: [{ parts: parts }],
             config: config
         });
 
@@ -123,15 +128,16 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
     
     try {
         const prompt = `
-            Process the audio file and provide a detailed transcription and authenticity analysis.
+            Process the audio file and generate a detailed transcription and authenticity analysis.
             Requirements:
-            1. Provide a highly accurate transcription of the speech.
-            2. Evaluate if the audio appears authentic (human-recorded) or if there are signs of it being AI-generated, synthesized, or digitally altered (deepfake).
-            3. Provide reasoning for your authenticity assessment based on acoustic anomalies, breathing patterns, or typical deepfake artifacts.
-            4. Generate a concise "primary_query" (5-8 words) that captures the core factual claim for search engine verification.
+            1. Provide accurate timestamps for each significant segment (Format: MM:SS).
+            2. Detect the primary language of the audio.
+            3. Evaluate if the audio appears authentic (human-recorded) or if there are signs of it being AI-generated, synthesized, or digitally altered (deepfake).
+            4. Provide reasoning based on acoustic anomalies or typical deepfake artifacts.
+            5. Generate a concise "primary_query" (5-8 words) for search engine verification.
         `;
 
-        const contents = [
+        const parts = [
             { text: prompt },
             {
                 inlineData: {
@@ -143,16 +149,16 @@ export const analyzeAudio = async (base64Audio, mimeType) => {
 
         const response = await client.models.generateContent({
             model: MODEL_NAME,
-            contents: contents,
+            contents: [{ parts: parts }],
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
-                    type: "OBJECT",
+                    type: Type.OBJECT,
                     properties: {
-                        transcription: { type: "STRING", description: "The transcribed text of the audio" },
-                        is_authentic: { type: "BOOLEAN", description: "True if the audio appears naturally human-recorded, False if it shows signs of AI generation or tampering" },
-                        authenticity_reasoning: { type: "STRING", description: "Brief reasoning for why it was deemed authentic or synthetic" },
-                        primary_query: { type: "STRING", description: "Most concise search query for news verification" }
+                        transcription: { type: Type.STRING, description: "Detailed transcription with timestamps if relevant" },
+                        is_authentic: { type: Type.BOOLEAN, description: "True if human-recorded, False if synthetic/tampered" },
+                        authenticity_reasoning: { type: Type.STRING },
+                        primary_query: { type: Type.STRING, description: "Concise search string" }
                     },
                     required: ["transcription", "is_authentic", "authenticity_reasoning", "primary_query"]
                 }
@@ -213,8 +219,11 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
             IMPORTANT: Ensure the response is a valid JSON object. Keep the total output concise to avoid truncation.
         `;
 
-        let contents = [];
+        const parts = [];
         
+        // Add the analysis instructions
+        parts.push({ text: prompt });
+
         // Input Type Handling
         if (videoUrl) {
             const isYouTube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
@@ -223,13 +232,13 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
                 console.log(`[aiModel] YouTube Link detected. Native Gemini video processing for external YT links is restricted.`);
                 console.log(`[aiModel] Falling back to text-based context analysis for URL: ${videoUrl}`);
                 // Instead of fileUri (which causes 403), we provide the URL and metadata context to the prompt
-                contents.push({ text: `Analyze the claim presented in this YouTube video: ${videoUrl}\n\nNote: Visual stream is restricted. Use the URL and surrounding information for verification.` });
+                parts.push({ text: `Analyze the claim presented in this YouTube video: ${videoUrl}\n\nNote: Visual stream is restricted. Use the URL and surrounding information for verification.` });
             } else {
                 console.log(`[aiModel] Direct Video URL detected. Attempting download...`);
                 const base64Data = await fetchVideoAsBase64(videoUrl);
                 
                 if (base64Data) {
-                    contents.push({
+                    parts.push({
                         inlineData: {
                             mimeType: mimeType || 'video/mp4',
                             data: base64Data
@@ -237,12 +246,12 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
                     });
                 } else {
                     console.warn("[aiModel] Could not download video. Proceeding with URL context only.");
-                    contents.push({ text: `Verify claim for video at: ${videoUrl}` });
+                    parts.push({ text: `Verify claim for video at: ${videoUrl}` });
                 }
             }
         } else if (base64Video) {
             console.log(`[aiModel] Analyzing Video from Base64 Data (size: ${Math.round(base64Video.length / 1024)} KB)`);
-            contents.push({
+            parts.push({
                 inlineData: {
                     mimeType: mimeType || 'video/mp4',
                     data: base64Video
@@ -252,23 +261,21 @@ export const analyzeVideo = async ({ base64Video, videoUrl, mimeType, videoConte
             throw new Error("Missing video input: Provide base64Video or videoUrl.");
         }
 
-        // Add the analysis instructions
-        contents.push({ text: prompt });
-
         const response = await client.models.generateContent({
             model: MODEL_NAME,
-            contents: contents,
+            contents: [{ parts: parts }],
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
-                    type: "OBJECT",
+                    type: Type.OBJECT,
                     properties: {
-                        transcription: { type: "STRING" },
-                        visual_summary: { type: "STRING" },
-                        combined_context: { type: "STRING", description: "The unified claim extraction for search" },
-                        primary_query: { type: "STRING", description: "Concise search string for Google News" }
+                        summary: { type: Type.STRING, description: "A concise summary of the entire video" },
+                        transcription: { type: Type.STRING, description: "Summary or key segments of spoken dialogue" },
+                        visual_summary: { type: Type.STRING, description: "Summary of key visual events/text" },
+                        combined_context: { type: Type.STRING, description: "Unified claim extraction for search" },
+                        primary_query: { type: Type.STRING, description: "Concise search string" }
                     },
-                    required: ["transcription", "visual_summary", "combined_context", "primary_query"]
+                    required: ["summary", "transcription", "visual_summary", "combined_context", "primary_query"]
                 }
             }
         });

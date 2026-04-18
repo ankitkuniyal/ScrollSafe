@@ -91,7 +91,7 @@ export const processFactCheck = async (req, res) => {
         let newsQuery = claim; 
         let base64Image = null;
 
-        if (req.file) {
+        if (req.file && req.file.mimetype.startsWith('image/')) {
             console.log(`\n[POST /api/fact-check] Received Image Upload: ${req.file.mimetype}`);
             base64Image = req.file.buffer.toString('base64');
             // When uploading a file, we skip fetchImageContext (SerpApi/Lens) as it requires a URL
