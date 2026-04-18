@@ -75,7 +75,10 @@ document.addEventListener('mouseup', (e) => {
                     if (currentBtn) currentBtn.remove();
                     currentBtn = null;
 
-                    showLoadingCard(rect.bottom + window.scrollY + 8, rect.left + window.scrollX, "Analyzing Claim...");
+                    const top = window.scrollY + 24;
+                    const left = rect.left + window.scrollX;
+
+                    showLoadingCard(top, left, "Analyzing Claim...");
                     showGlobalLoader();
 
                     try {
@@ -85,12 +88,12 @@ document.addEventListener('mouseup', (e) => {
                         });
 
                         if (response.error) {
-                            showErrorCard(response.error, rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                            showErrorCard(response.error, top, left);
                         } else {
-                            showResultCard(response.data, rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                            showResultCard(response.data, top, left);
                         }
                     } catch (error) {
-                        showErrorCard(`Extension error: ${error.message || 'Could not contact background script.'}`, rect.bottom + window.scrollY + 8, rect.left + window.scrollX);
+                        showErrorCard(`Extension error: ${error.message || 'Could not contact background script.'}`, top, left);
                     }
                 });
 
@@ -114,9 +117,9 @@ function createBaseCard(top, left) {
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
 
-    // Attempt graceful placement offscreen collision detection
-    if (left + 320 > window.innerWidth) {
-        card.style.left = `${window.innerWidth - 340}px`;
+    // Attempt graceful placement offscreen collision detection (Card width is 400px)
+    if (left + 400 > window.innerWidth) {
+        card.style.left = `${window.innerWidth - 420}px`;
     }
 
     return card;
@@ -218,25 +221,8 @@ function injectVideoButtons() {
     const isYouTube = window.location.hostname.includes('youtube.com');
 
     if (isYouTube) {
-        // 1. YouTube Regular (Action Bar integration)
-        // Target modern ytd-watch-metadata buttons or fallback to legacy ytd-video-primary-info-renderer
-        const actionBarSelectors = [
-            'ytd-watch-metadata #top-level-buttons-computed',
-            '#top-level-buttons-computed.ytd-menu-renderer',
-            'ytd-video-primary-info-renderer #top-level-buttons-computed'
-        ];
 
-        let barFound = false;
-        actionBarSelectors.forEach(selector => {
-            const bars = document.querySelectorAll(`${selector}:not(.scrollsafe-injected)`);
-            bars.forEach(bar => {
-                bar.classList.add('scrollsafe-injected');
-                addYTActionBarBtn(bar, () => window.location.href);
-                barFound = true;
-            });
-        });
-
-        // 2. YouTube Shorts (Action Tray integration)
+        // 1. YouTube Shorts (Action Tray integration)
         const ytShortsTrays = document.querySelectorAll('reel-action-bar-view-model:not(.scrollsafe-injected)');
         ytShortsTrays.forEach(tray => {
             tray.classList.add('scrollsafe-injected');
@@ -252,69 +238,6 @@ function injectVideoButtons() {
             addFloatingBtn(container, () => v.src || window.location.href, isX);
         });
     }
-}
-
-function addYTActionBarBtn(container, getUrlFunc) {
-    const btnViewModel = document.createElement('button-view-model');
-    btnViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer scrollsafe-yt-action-item';
-
-    btnViewModel.innerHTML = `
-        <button class="yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-only" aria-label="Analyze">
-            <div aria-hidden="true" class="yt-spec-button-shape-next__icon">
-                <svg id="scrollsafe-shorts-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3" style="width: 20px; height: 20px;">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-            </div>
-            <yt-touch-feedback-shape aria-hidden="true" class="ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse">
-                <div class="ytSpecTouchFeedbackShapeStroke"></div>
-                <div class="ytSpecTouchFeedbackShapeFill"></div>
-            </yt-touch-feedback-shape>
-        </button>
-    `;
-
-    btnViewModel.querySelector('button').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-
-        if (isAnalyzingVideo) return;
-        isAnalyzingVideo = true;
-
-        btnViewModel.classList.add('loading');
-        const videoUrl = getUrlFunc();
-        const top = window.scrollY + 100;
-        const left = window.scrollX + (window.innerWidth / 2) - 190;
-
-        // Extract Title relative to the action bar to avoid mismatch
-        const watchMetadata = btnViewModel.closest('ytd-watch-metadata, #watch-header, ytd-video-primary-info-renderer');
-        const videoTitle = watchMetadata?.querySelector('h1')?.innerText || document.title;
-
-        removeUI();
-        showLoadingCard(top, left, "Analyzing Video Content...");
-        showGlobalLoader();
-
-        try {
-            const response = await chrome.runtime.sendMessage({
-                action: 'checkVideoFact',
-                videoUrl: videoUrl,
-                context: videoTitle
-            });
-
-            isAnalyzingVideo = false;
-            btnViewModel.classList.remove('loading');
-
-            if (response.error) {
-                showErrorCard(response.error, top, left);
-            } else {
-                showResultCard(response.data, top, left);
-            }
-        } catch (err) {
-            isAnalyzingVideo = false;
-            btnViewModel.classList.remove('loading');
-            showErrorCard(`Extension error: ${err.message || 'Analysis failed.'}`, top, left);
-        }
-    });
-
-    container.appendChild(btnViewModel);
 }
 
 
@@ -347,7 +270,7 @@ function addShortsTrayBtn(tray, getUrlFunc) {
         const videoUrl = videoId ? `https://www.youtube.com/shorts/${videoId}` : window.location.href;
 
         const rect = label.getBoundingClientRect();
-        const top = Math.max(50, rect.top + window.scrollY - 350);
+        const top = window.scrollY + 24;
         const left = rect.right + window.scrollX + 40;
 
         const shortsTitle = reel?.querySelector('h2')?.innerText || reel?.querySelector('.title')?.innerText || "YouTube Short";
@@ -401,7 +324,7 @@ function addFloatingBtn(parent, getUrlFunc, isX = false) {
 
         btn.classList.add('loading');
         const videoUrl = getUrlFunc();
-        const top = window.scrollY + 100;
+        const top = window.scrollY + 24;
         const left = window.scrollX + (window.innerWidth / 2) - 190;
 
         // Extract Tweet text from X
@@ -447,7 +370,7 @@ setInterval(injectVideoButtons, 2000);
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'triggerImageCheck' || message.action === 'triggerVideoCheck') {
-        const top = window.scrollY + Math.max(100, window.innerHeight / 2 - 100);
+        const top = window.scrollY + 24;
         const left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
 
         removeUI();

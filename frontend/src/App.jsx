@@ -59,7 +59,7 @@ function App() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? 'bg-navBg backdrop-blur-xl border-b border-surfaceBorder py-4 shadow-sm' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-            <img src="/logo.svg" className="w-9 h-auto transition-transform group-hover:scale-105" alt="logo" />
+            <img src="/favicon.svg" className="w-9 h-auto transition-transform group-hover:scale-105" alt="logo" />
             <span className="font-bold text-2xl tracking-tight text-primary">ScrollSafe</span>
           </Link>
 
@@ -97,10 +97,15 @@ function App() {
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button className="group relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-background transition-all duration-300 ease-out bg-primary rounded-full shadow-md hover:scale-105">
+            <a 
+              href="https://chromewebstore.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-background transition-all duration-300 ease-out bg-primary rounded-full shadow-md hover:scale-105"
+            >
               Add to Chrome
               <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </a>
           </div>
 
           <div className="md:hidden flex items-center gap-4">
@@ -121,9 +126,15 @@ function App() {
             <Link to="/" className="font-semibold text-primary" onClick={() => setMobileMenuOpen(false)}>Home</Link>
             <Link to="/analyze" className="font-semibold text-primary" onClick={() => setMobileMenuOpen(false)}>Text Analyzer</Link>
             <div className="w-full h-px bg-surfaceBorder"></div>
-            <button className="w-full py-3 bg-primary text-background rounded-xl font-bold flex items-center justify-center">
+            <a 
+              href="https://chrome.google.com/webstore/devconsole"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 bg-primary text-background rounded-xl font-bold flex items-center justify-center"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Add to Chrome <ChevronRight size={18} className="ml-1" />
-            </button>
+            </a>
           </div>
         </div>
       )}
@@ -142,7 +153,7 @@ function App() {
 
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-6">
-                <img src="/logo.svg" className="w-6 h-auto" alt="logo" />
+                <img src="/favicon.svg" className="w-6 h-auto" alt="logo" />
                 <span className="font-bold text-xl text-primary">ScrollSafe</span>
               </div>
               <p className="text-sm text-muted leading-relaxed">
@@ -153,7 +164,7 @@ function App() {
             <div>
               <h4 className="font-semibold text-primary mb-6">Product</h4>
               <ul className="space-y-4 text-sm text-muted">
-                <li><a href="#" className="hover:text-primary transition-colors">Download Extension</a></li>
+                <li><a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Download Extension</a></li>
                 <li><Link to="/analyze" className="hover:text-primary transition-colors">Text Analyzer</Link></li>
                 <li><Link to="/#pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
               </ul>
