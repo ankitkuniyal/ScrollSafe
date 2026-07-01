@@ -1,12 +1,7 @@
-let currentBtn = null;
 let currentCard = null;
 let isAnalyzingVideo = false;
 
 function removeUI() {
-    if (currentBtn) {
-        currentBtn.remove();
-        currentBtn = null;
-    }
     if (currentCard) {
         currentCard.remove();
         currentCard = null;
@@ -33,79 +28,8 @@ function preprocessText(text) {
     return mainClaim.substring(0, 300).toLowerCase();
 }
 
-document.addEventListener('mouseup', (e) => {
-    // Check if the extension context is still valid
-    if (!chrome.runtime?.id) return;
-
-    chrome.storage.local.get(['isEnabled'], (result) => {
-        if (chrome.runtime.lastError || result.isEnabled === false) return;
-
-        setTimeout(() => {
-            const selection = window.getSelection();
-            const text = selection.toString();
-
-            if (currentCard && currentCard.contains(e.target)) return;
-            if (currentBtn && currentBtn.contains(e.target)) return;
-
-            removeUI();
-
-            if (text.length > 20) {
-                const range = selection.getRangeAt(0);
-                const rect = range.getBoundingClientRect();
-
-                const btn = document.createElement('button');
-                btn.id = 'scrollsafe-btn';
-                btn.innerHTML = `
-                    <span>Check with ScrollSafe</span>
-                    <svg width="18" height="14" viewBox="0 0 59 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 15.1533L56.0254 27.3643C57.7788 27.8295 59 29.4164 59 31.2305V40H49V35.8457L29.501 30.6729L10 35.8457V40H0V31.2305C4.53996e-06 29.4164 1.22118 27.8295 2.97461 27.3643L10.001 25.499L2.97461 23.6357C1.22116 23.1706 3.02567e-05 21.5836 0 19.7695V14C0 11.7909 1.79086 10 4 10H10V15.1533Z" fill="white"/>
-                        <path d="M55 10C57.2091 10 59 11.7909 59 14V20H49V10H55Z" fill="white"/>
-                        <path d="M45 0C47.2091 0 49 1.79086 49 4V10H10V4C10 1.79086 11.7909 2.81866e-08 14 0H45Z" fill="white"/>
-                    </svg>
-                `;
-                // Position relative to document
-                btn.style.top = `${rect.bottom + window.scrollY + 8}px`;
-                btn.style.left = `${rect.left + window.scrollX}px`;
-
-                btn.addEventListener('mousedown', async (ev) => {
-                    ev.preventDefault(); // maintain selection highlighting
-                    ev.stopPropagation();
-
-                    const processed = preprocessText(text);
-                    if (currentBtn) currentBtn.remove();
-                    currentBtn = null;
-
-                    const top = window.scrollY + 24;
-                    const left = rect.left + window.scrollX;
-
-                    showLoadingCard(top, left, "Analyzing Claim...");
-                    showGlobalLoader();
-
-                    try {
-                        const response = await chrome.runtime.sendMessage({
-                            action: 'checkFact',
-                            claim: processed
-                        });
-
-                        if (response.error) {
-                            showErrorCard(response.error, top, left);
-                        } else {
-                            showResultCard(response.data, top, left);
-                        }
-                    } catch (error) {
-                        showErrorCard(`Extension error: ${error.message || 'Could not contact background script.'}`, top, left);
-                    }
-                });
-
-                document.body.appendChild(btn);
-                currentBtn = btn;
-            }
-        }, 10);
-    });
-});
-
 document.addEventListener('mousedown', (e) => {
-    if (currentBtn && !currentBtn.contains(e.target) && (!currentCard || !currentCard.contains(e.target))) {
+    if (currentCard && !currentCard.contains(e.target)) {
         removeUI();
     }
 });
@@ -384,6 +308,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             : { action, videoUrl: message.videoUrl };
 
         chrome.runtime.sendMessage(payload).then(response => {
+            if (response.error) {
+                showErrorCard(response.error, top, left);
+            } else {
+                showResultCard(response.data, top, left);
+            }
+        }).catch(err => {
+            showErrorCard(`Extension error: ${err.message || 'Could not contact background script.'}`, top, left);
+        });
+    } else if (message.action === 'triggerTextCheck') {
+        const selection = window.getSelection();
+        let top = window.scrollY + 24;
+        let left = window.scrollX + Math.max(50, window.innerWidth / 2 - 170);
+
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                top = window.scrollY + Math.max(24, rect.bottom + 8);
+                left = rect.left + window.scrollX;
+            }
+        }
+
+        removeUI();
+        showLoadingCard(top, left, "Analyzing Claim...");
+        showGlobalLoader();
+
+        const processed = preprocessText(message.text || '');
+
+        chrome.runtime.sendMessage({
+            action: 'checkFact',
+            claim: processed
+        }).then(response => {
             if (response.error) {
                 showErrorCard(response.error, top, left);
             } else {

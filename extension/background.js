@@ -38,9 +38,26 @@ chrome.runtime.onInstalled.addListener(() => {
         title: "Analyze Video with ScrollSafe",
         contexts: ["video", "link"]
     });
+
+    chrome.contextMenus.create({
+        id: "checkText",
+        title: "Check with ScrollSafe",
+        contexts: ["selection"]
+    });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "checkText" && info.selectionText) {
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'triggerTextCheck',
+            text: info.selectionText
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn("Could not send checkText message (Receiving end does not exist). The user likely needs to refresh the page.");
+            }
+        });
+    }
+
     if (info.menuItemId === "checkImage" && info.srcUrl) {
         chrome.tabs.sendMessage(tab.id, {
             action: 'triggerImageCheck',

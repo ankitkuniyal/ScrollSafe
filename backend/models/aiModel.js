@@ -8,7 +8,7 @@ const client = new GoogleGenAI({
 });
 
 // Current model configuration
-const MODEL_NAME = "gemini-2.5-flash-lite";
+const MODEL_NAME = "gemini-3.1-flash-lite";
 
 /**
  * Helper to execute Gemini calls with automatic retry on 429 (Rate Limit) errors.

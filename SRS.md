@@ -15,23 +15,24 @@ ScrollSafe integrates several cutting-edge AI technologies to provide a high-con
 - **Frontend**: React (Vite), Tailwind CSS, Lucide React (Icons), Framer Motion (Animations).
 - **Backend**: Node.js, Express.js.
 - **AI/ML**:
-    - **Google Gemini (Gen-3 Flash)**: Primary engine for multi-modal context extraction and final reasoning.
+    - **Google Gemini (gemini-3.1-flash-lite)**: Primary engine for multi-modal context extraction and final reasoning.
     - **Transformers.js (Xenova)**: Local embedding generation (all-MiniLM-L6-v2).
-    - **Qdrant**: Vector database for hyper-fast historical claim matching.
+    - **Qdrant**: Vector database for hyper-fast historical claim matching (configured via `QDRANT_URL` and `QDRANT_API_KEY` environment variables).
 - **APIs**:
     - **SerpApi (Google Lens/News)**: Live web search and visual context extraction.
+    - **Azure Translator API**: Detect and translate claims in foreign languages before analysis.
 - **Extension**: Chrome Extension Manifest V3 (Vanilla JS, CSS).
 
 ## 3. System Architecture
 ScrollSafe follows a modular architecture:
-1.  **Injected UI (Extension)**: Floating glassmorphism buttons and cards injected into active tabs.
+1.  **Injected UI (Extension)**: Browser context menu integrations (for text selections) and floating overlays/cards injected into active tabs.
 2.  **Background Processor**: Handles communication between the extension and the ScrollSafe API.
 3.  **API Gateway**: Node.js server managing authentication, request routing, and orchestration.
 4.  **AI Orchestrator**: Aggregates data from historical (Qdrant) and live (SerpApi) sources to generate a final AI verdict.
 
 ## 4. Functional Requirements
 ### 4.1 Feature Set
-- **Text Fact-Checking**: Highlighting text and clicking the "Check with ScrollSafe" button.
+- **Text Fact-Checking**: Highlighting text, right-clicking, and selecting "Check with ScrollSafe" from the context menu.
 - **Image Intelligence**: Right-click context menu for any image to trigger Google Lens + Gemini Vision analysis.
 - **Audio Deepfake Detection**: Uploading audio files to detect AI-generated speech and transcribe content.
 - **Video Analysis**: 
@@ -41,7 +42,7 @@ ScrollSafe follows a modular architecture:
 - **Dark/Light Mode**: Full theme customization across web and extension interfaces.
 
 ### 4.2 User Workflow
-1.  User triggers a check (Selecting text / Clicking video button / Uploading file).
+1.  User triggers a check (Selecting text and clicking "Check with ScrollSafe" in the context menu / Clicking video button / Uploading file).
 2.  System extracts context (OCR, Vision, Transcription, or Vector Search).
 3.  System checks Qdrant for historical matches.
 4.  If no high-confidence match, system fetches breaking news from SerpApi.
@@ -58,3 +59,4 @@ ScrollSafe follows a modular architecture:
 | Version | Date | Description |
 | :--- | :--- | :--- |
 | v1.0 | 2026-04-18 | Initial SRS draft for ScrollSafe Ecosystem |
+| v1.1 | 2026-07-01 | Updated text verification trigger to context menu, updated AI models to Gemini 3.1, and added Qdrant env variables. |
